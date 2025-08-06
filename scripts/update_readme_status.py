@@ -1,0 +1,267 @@
+#!/usr/bin/env python3
+"""
+README Status Update Script for Maelstrom Monitoring Stack
+Updates the dynamic status block in README.md with current service health information
+"""
+
+import json
+import re
+import subprocess
+import sys
+from datetime import datetime, timezone
+from typing import Dict, List, Tuple
+
+import requests
+
+
+def get_docker_service_status() -> Tuple[int, int, List[str]]:
+    """Get Docker service status information"""
+    try:
+        # Get running containers
+        result = subprocess.run(
+            ["docker", "ps", "--format", "{{.Names}}:{{.Status}}:{{.State}}"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        
+        healthy_count = 0
+        unhealthy_services = []
+        total_services = 0
+        
+        for line in result.stdout.strip().split('\n'):
+            if not line:
+                continue
+                
+            parts = line.split(':')
+            if len(parts) >= 3:
+                name = parts[0]
+                status = parts[1]
+                state = parts[2]
+                
+                total_services += 1
+                
+                # Check if container is running and healthy
+                if state == "running":
+                    # Check health status for containers with health checks
+                    health_result = subprocess.run(
+                        ["docker", "inspect", name, "--format", "{{.State.Health.Status}}"],
+                        capture_output=True,
+                        text=True
+                    )
+                    
+                    health_status = health_result.stdout.strip()
+                    if health_status == "healthy" or health_status == "":
+                        healthy_count += 1
+                    elif health_status == "unhealthy":
+                        unhealthy_services.append(f"{name} (unhealthy)")
+                    elif health_status == "starting":
+                        # Still starting, don't count as unhealthy yet
+                        healthy_count += 1
+                else:
+                    unhealthy_services.append(f"{name} ({state})")
+        
+        failing_count = total_services - healthy_count
+        return healthy_count, failing_count, unhealthy_services
+        
+    except subprocess.CalledProcessError as e:
+        print(f"Error getting Docker status: {e}", file=sys.stderr)
+        return 0, 0, ["Docker command failed"]
+    except Exception as e:
+        print(f"Unexpected error getting Docker status: {e}", file=sys.stderr)
+        return 0, 0, ["Status check failed"]
+
+
+def get_alertmanager_alerts() -> Tuple[int, List[str]]:
+    """Get active alerts from Alertmanager"""
+    try:
+        response = requests.get("http://localhost:9093/api/v1/alerts", timeout=5)
+        if response.status_code == 200:
+            alerts_data = response.json()
+            alerts = alerts_data.get('data', [])
+            
+            critical_alerts = []
+            for alert in alerts:
+                if alert.get('state') == 'active':
+                    severity = alert.get('labels', {}).get('severity', 'unknown')
+                    alertname = alert.get('labels', {}).get('alertname', 'Unknown Alert')
+                    
+                    if severity.lower() in ['critical', 'high']:
+                        critical_alerts.append(f"{alertname} ({severity})")
+            
+            return len(critical_alerts), critical_alerts
+        else:
+            return 0, []
+            
+    except requests.RequestException:
+        # Alertmanager might not be running or accessible
+        return 0, []
+    except Exception as e:
+        print(f"Error checking alerts: {e}", file=sys.stderr)
+        return 0, []
+
+
+def determine_overall_health(healthy_services: int, failing_services: int, critical_alerts: int) -> str:
+    """Determine overall stack health status"""
+    if failing_services == 0 and critical_alerts == 0:
+        return "🟢 Healthy"
+    elif failing_services <= 2 and critical_alerts == 0:
+        return "🟡 Degraded"
+    elif failing_services <= 5 and critical_alerts <= 2:
+        return "🟠 Impaired"
+    else:
+        return "🔴 Critical"
+
+
+def generate_status_table(
+    overall_health: str,
+    critical_alerts: int,
+    failing_services: int,
+    timestamp: str,
+    alert_details: List[str] = None,
+    unhealthy_details: List[str] = None
+) -> str:
+    """Generate the status table markup"""
+    
+    # Format alert status
+    if critical_alerts == 0:
+        alert_status = "✅ None"
+    else:
+        alert_status = f"🚨 {critical_alerts}"
+    
+    # Base table
+    table = f"""| Key Metric       | Value             |
+|------------------|------------------|
+| Stack Health     | {overall_health} |
+| Critical Alerts  | {alert_status} |
+| Failing Services | {failing_services} |
+| Last Check       | {timestamp} |"""
+    
+    # Add details if there are issues
+    details = []
+    
+    if alert_details and critical_alerts > 0:
+        details.append("\n**Active Critical Alerts:**")
+        for alert in alert_details[:5]:  # Limit to 5 alerts
+            details.append(f"- {alert}")
+    
+    if unhealthy_details and failing_services > 0:
+        details.append("\n**Failing Services:**")
+        for service in unhealthy_details[:5]:  # Limit to 5 services
+            details.append(f"- {service}")
+    
+    if details:
+        table += "\n" + "\n".join(details)
+    
+    return table
+
+
+def manage_github_issues(failing_count: int, unhealthy_services: List[str], critical_alerts: List[str]):
+    """Manage GitHub issues based on infrastructure health"""
+    try:
+        import subprocess
+        
+        if failing_count > 2 or len(critical_alerts) > 0:
+            # Create issue for significant infrastructure problems
+            title = f"🚨 Infrastructure Health Alert - {failing_count} services failing"
+            
+            # Prepare service data for issue creation
+            failing_services_json = json.dumps(unhealthy_services)
+            critical_alerts_json = json.dumps(critical_alerts)
+            
+            # Call GitHub issue manager
+            subprocess.run([
+                "python3", "/home/mills/scripts/github_issue_manager.py",
+                "create", title, failing_services_json, critical_alerts_json
+            ], check=False, capture_output=True)
+            
+        elif failing_count == 0 and len(critical_alerts) == 0:
+            # System is healthy - close any open infrastructure issues
+            subprocess.run([
+                "python3", "/home/mills/scripts/github_issue_manager.py",
+                "close-healthy"
+            ], check=False, capture_output=True)
+            
+    except Exception as e:
+        print(f"Warning: GitHub issue management failed: {e}", file=sys.stderr)
+
+
+def update_readme_status():
+    """Main function to update README.md status block"""
+    try:
+        # Get current status information
+        healthy_count, failing_count, unhealthy_services = get_docker_service_status()
+        critical_alert_count, critical_alerts = get_alertmanager_alerts()
+        
+        # Determine overall health
+        overall_health = determine_overall_health(healthy_count, failing_count, critical_alert_count)
+        
+        # Generate timestamp
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        
+        # GitHub issue management based on health status
+        manage_github_issues(failing_count, unhealthy_services, critical_alerts)
+        
+        # Generate status table
+        status_table = generate_status_table(
+            overall_health,
+            critical_alert_count,
+            failing_count,
+            timestamp,
+            critical_alerts,
+            unhealthy_services
+        )
+        
+        # Read current README.md
+        readme_path = "/home/mills/README.md"
+        try:
+            with open(readme_path, 'r') as f:
+                readme_content = f.read()
+        except FileNotFoundError:
+            print(f"README.md not found at {readme_path}", file=sys.stderr)
+            return False
+        
+        # Find and replace the status section
+        status_pattern = r'(<!-- STATUS-BEGIN -->).*?(<!-- STATUS-END -->)'
+        replacement = f'<!-- STATUS-BEGIN -->\n{status_table}\n<!-- STATUS-END -->'
+        
+        # Also update the main status table above the markers
+        main_status_pattern = r'(\| Key Metric\s+\| Value\s+\|[\s\S]*?\| Last Check\s+\|[^\n]*)'
+        
+        if re.search(status_pattern, readme_content, re.DOTALL):
+            # Update the status markers section
+            updated_content = re.sub(status_pattern, replacement, readme_content, flags=re.DOTALL)
+        else:
+            print("Status markers not found in README.md", file=sys.stderr)
+            return False
+        
+        # Also update the main table if it exists
+        if re.search(main_status_pattern, updated_content, re.DOTALL):
+            updated_content = re.sub(
+                main_status_pattern,
+                status_table,
+                updated_content,
+                flags=re.DOTALL
+            )
+        
+        # Write updated content back to README.md
+        with open(readme_path, 'w') as f:
+            f.write(updated_content)
+        
+        # Print status summary
+        print(f"README.md status updated successfully")
+        print(f"Overall Health: {overall_health}")
+        print(f"Services: {healthy_count} healthy, {failing_count} failing")
+        print(f"Critical Alerts: {critical_alert_count}")
+        print(f"Timestamp: {timestamp}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error updating README status: {e}", file=sys.stderr)
+        return False
+
+
+if __name__ == "__main__":
+    success = update_readme_status()
+    sys.exit(0 if success else 1)
