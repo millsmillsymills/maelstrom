@@ -1,0 +1,714 @@
+version: '3.8'
+
+services:
+  # ML Analytics Stack Profile
+  ml-analytics:
+    image: python:3.11-slim
+    container_name: ml-analytics
+    profiles:
+      - ml-analytics
+      - analytics-stack
+    volumes:
+      - /home/mills/collections/ml-analytics:/app
+    working_dir: /app
+    command: bash -c "pip install -r requirements.txt && python advanced_ml_pipeline.py"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    depends_on:
+      - influxdb
+      - prometheus
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.24
+
+  data-optimizer:
+    image: python:3.11-slim
+    container_name: data-optimizer
+    profiles:
+      - ml-analytics
+      - analytics-stack
+    working_dir: /app
+    command: bash -c "
+      apt-get update && 
+      apt-get install -y curl && 
+      pip install -r requirements.txt && 
+      python data_lifecycle_optimizer.py"
+    volumes:
+      - /home/mills/collections/data-optimizer:/app
+      - /home/mills/collections/influxdb:/var/lib/influxdb:ro
+      - /home/mills/collections/prometheus_data:/prometheus:ro
+    environment:
+      - INFLUXDB_HOST=influxdb
+      - PROMETHEUS_HOST=prometheus
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.35
+    depends_on:
+      - influxdb
+      - prometheus
+
+  resource-optimizer:
+    image: python:3.11-slim
+    container_name: resource-optimizer
+    profiles:
+      - ml-analytics
+      - analytics-stack
+    working_dir: /app
+    command: bash -c "
+      apt-get update && 
+      apt-get install -y curl procps && 
+      pip install -r requirements.txt && 
+      python resource_optimizer.py"
+    volumes:
+      - /home/mills/collections/resource-optimizer:/app
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - METRICS_ENDPOINT=http://prometheus:9090
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_add:
+      - SYS_ADMIN
+      - DAC_OVERRIDE
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.38
+    depends_on:
+      - prometheus
+
+  # Wazuh Stack Profile
+  wazuh-elasticsearch:
+    image: elasticsearch:7.17.23
+    container_name: wazuh-elasticsearch
+    profiles:
+      - wazuh-stack
+      - security-stack
+    environment:
+      - discovery.type=single-node
+      - cluster.name=wazuh-cluster
+      - node.name=wazuh-elasticsearch
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - ELASTIC_PASSWORD=kibanaserver
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - wazuh_elastic_data:/usr/share/elasticsearch/data
+    ports:
+      - "127.0.0.1:9200:9200"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.28
+
+  wazuh-manager:
+    image: wazuh/wazuh-manager:4.9.1
+    container_name: wazuh-manager
+    hostname: wazuh-manager
+    profiles:
+      - wazuh-stack
+      - security-stack
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "1514:1514"
+      - "1515:1515"
+      - "514:514/udp"
+      - "55000:55000"
+    environment:
+      - INDEXER_URL=https://wazuh-elasticsearch:9200
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=kibanaserver
+      - FILEBEAT_SSL_VERIFICATION_MODE=full
+      - SSL_CERTIFICATE_AUTHORITIES=/etc/ssl/root-ca.pem
+      - SSL_CERTIFICATE=/etc/ssl/filebeat.pem
+      - SSL_KEY=/etc/ssl/filebeat.key
+      - API_USERNAME=wazuh
+      - API_PASSWORD=wazuh
+    volumes:
+      - wazuh_api_configuration:/var/ossec/api/configuration
+      - wazuh_etc:/var/ossec/etc
+      - wazuh_logs:/var/ossec/logs
+      - wazuh_queue:/var/ossec/queue
+      - wazuh_var_multigroups:/var/ossec/var/multigroups
+      - wazuh_integrations:/var/ossec/integrations
+      - wazuh_active_response:/var/ossec/active-response/bin
+      - wazuh_agentless:/var/ossec/agentless
+      - wazuh_wodles:/var/ossec/wodles
+      - /home/mills/security/collections/wazuh:/var/ossec/etc/shared/default
+    depends_on:
+      - wazuh-elasticsearch
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.29
+
+  wazuh-dashboard:
+    image: wazuh/wazuh-dashboard:4.9.1
+    container_name: wazuh-dashboard
+    hostname: wazuh-dashboard
+    profiles:
+      - wazuh-stack
+      - security-stack
+    restart: unless-stopped
+    ports:
+      - "5601:5601"
+    environment:
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=kibanaserver
+      - WAZUH_API_URL=https://wazuh-manager
+      - DASHBOARD_USERNAME=kibanaserver
+      - DASHBOARD_PASSWORD=kibanaserver
+    volumes:
+      - wazuh_dashboard_config:/usr/share/wazuh-dashboard/data
+      - /home/mills/security/collections/wazuh-dashboard/certs:/usr/share/wazuh-dashboard/certs
+    depends_on:
+      - wazuh-elasticsearch
+      - wazuh-manager
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.30
+
+  # Security Stack Profile
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: suricata
+    profiles:
+      - security-stack
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+    environment:
+      - SURICATA_OPTIONS=-i ens3
+    volumes:
+      - /home/mills/security/collections/suricata:/etc/suricata:ro
+      - suricata_logs:/var/log/suricata
+      - /home/mills/security/collections/suricata/rules:/var/lib/suricata/rules:ro
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    depends_on:
+      - wazuh-manager
+
+  zeek:
+    image: zeek/zeek:latest
+    container_name: zeek
+    profiles:
+      - security-stack
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - ZEEK_INTERFACE=ens3
+    command: ["/usr/local/zeek/bin/zeek", "-i", "ens3", "-C", "local"]
+    volumes:
+      - zeek_logs:/usr/local/zeek/logs
+      - zeek_spool:/usr/local/zeek/spool
+      - /home/mills/security/collections/zeek:/usr/local/zeek/share/zeek/site:ro
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    depends_on:
+      - wazuh-manager
+
+  ntopng:
+    image: ntop/ntopng:latest
+    container_name: ntopng
+    profiles:
+      - security-stack
+    ports:
+      - "3001:3000"
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.44
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - NTOPNG_CONFIG=-i ens3 -P /var/lib/ntopng/ntopng.pid -d /var/lib/ntopng -w 3000
+    volumes:
+      - ntopng_data:/var/lib/ntopng
+      - /home/mills/security/collections/ntopng:/etc/ntopng:ro
+      - /home/mills/scripts/healthcheck.sh:/opt/healthcheck.sh:ro
+    restart: unless-stopped
+    healthcheck:
+      # Test: Check if ntopng is running by validating process and log activity
+      test: ["CMD", "sh", "/opt/healthcheck.sh", "ntopng"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  security-monitor:
+    image: python:3.11-slim
+    container_name: security-monitor
+    profiles:
+      - security-stack
+    volumes:
+      - /home/mills/security/collections/security-monitor:/app
+      - /home/mills/collections/prometheus:/etc/prometheus:ro
+      - /home/mills/collections/alertmanager:/etc/alertmanager:ro
+      - /home/mills/collections/grafana:/var/lib/grafana:ro
+      - /home/mills/collections/influxdb:/var/lib/influxdb:ro
+      - /home/mills/collections/loki:/etc/loki:ro
+      - /var/log:/host/var/log:ro
+      - /etc:/host/etc:ro
+      - /proc:/host/proc:ro
+    working_dir: /app
+    command: bash -c "pip install -r requirements.txt && python enhanced_security_monitor.py"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 128M
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.23
+
+  threat-intelligence:
+    image: python:3.11-slim
+    container_name: threat-intelligence
+    profiles:
+      - security-stack
+    working_dir: /app
+    command: bash -c "
+      apt-get update && 
+      apt-get install -y curl iputils-ping traceroute nmap && 
+      pip install -r requirements.txt && 
+      python threat_intelligence_engine.py"
+    volumes:
+      - /home/mills/security/collections/threat-intelligence:/app
+      - /home/mills/logs:/var/log/threat-intelligence
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - API_KEYS_FILE=/app/api_keys.json
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.34
+    depends_on:
+      - prometheus
+      - slack-notifier
+
+  geopolitical-threat-detector:
+    image: python:3.11-slim
+    container_name: geopolitical-threat-detector
+    profiles:
+      - security-stack
+    working_dir: /app
+    command: bash -c "
+      apt-get update && 
+      apt-get install -y iptables ipset curl tcpdump && 
+      pip install -r requirements.txt && 
+      python geopolitical_threat_detector.py"
+    volumes:
+      - /home/mills/security/collections/geopolitical-threat-detector:/app
+      - /home/mills/logs:/var/log/geopolitical-threats
+      - /proc/net:/host/proc/net:ro
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - THREAT_INTEL_API_KEY=${THREAT_INTEL_API_KEY}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    privileged: true  # Required for network analysis and iptables
+    network_mode: host  # Required for network monitoring
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    depends_on:
+      - threat-intelligence
+
+  threat-response:
+    image: python:3.11-slim
+    container_name: threat-response
+    profiles:
+      - security-stack
+    working_dir: /app
+    command: bash -c "
+      apt-get update && 
+      apt-get install -y iptables ipset curl && 
+      pip install -r requirements.txt && 
+      python automated_threat_response.py"
+    volumes:
+      - /home/mills/security/collections/threat-response:/app
+      - /home/mills/logs:/var/log/threat-response
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    privileged: true  # Required for threat response actions
+    network_mode: host  # Required for network controls
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    depends_on:
+      - threat-intelligence
+      - geopolitical-threat-detector
+
+  # Analytics Stack Profile  
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    profiles:
+      - analytics-stack
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+      - "9411:9411"
+      - "5778:5778"
+      - "5775:5775/udp"
+    environment:
+      - COLLECTOR_ZIPKIN_HTTP_PORT=9411
+      - SPAN_STORAGE_TYPE=memory
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.31
+
+  self-healing:
+    image: python:3.11-slim
+    container_name: self-healing
+    profiles:
+      - analytics-stack
+    working_dir: /app
+    command: bash -c "
+      apt-get update && 
+      apt-get install -y curl && 
+      pip install -r requirements.txt && 
+      python self_healing_infrastructure.py"
+    volumes:
+      - /home/mills/collections/self-healing:/app
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.36
+    depends_on:
+      - prometheus
+
+  maelstrom-monitor:
+    image: python:3.11-slim
+    container_name: maelstrom-monitor
+    profiles:
+      - analytics-stack
+    working_dir: /app
+    command: bash -c "
+      apt-get update && 
+      apt-get install -y iputils-ping curl && 
+      pip install -r requirements.txt && 
+      python maelstrom_monitor.py"
+    volumes:
+      - /home/mills/collections/maelstrom-monitor:/app
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - UNRAID_API_KEY=${UNRAID_API_KEY}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.37
+    depends_on:
+      - influxdb
+      - prometheus
+
+  unraid-monitor:
+    image: python:3.11-slim
+    container_name: unraid-monitor
+    profiles:
+      - analytics-stack
+    working_dir: /app
+    command: bash -c "
+      apt-get update && 
+      apt-get install -y curl iputils-ping && 
+      pip install -r requirements.txt && 
+      python unraid_monitor.py"
+    volumes:
+      - /home/mills/collections/unraid-monitor:/app
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - UNRAID_API_KEY=${UNRAID_API_KEY}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.32
+    depends_on:
+      - influxdb
+      - prometheus
+
+volumes:
+  wazuh_elastic_data:
+    driver: local
+  wazuh_api_configuration:
+    driver: local
+  wazuh_etc:
+    driver: local
+  wazuh_logs:
+    driver: local
+  wazuh_queue:
+    driver: local
+  wazuh_var_multigroups:
+    driver: local
+  wazuh_integrations:
+    driver: local
+  wazuh_active_response:
+    driver: local
+  wazuh_agentless:
+    driver: local
+  wazuh_wodles:
+    driver: local
+  wazuh_dashboard_config:
+    driver: local
+  suricata_logs:
+    driver: local
+  zeek_logs:
+    driver: local
+  zeek_spool:
+    driver: local
+  ntopng_data:
+    driver: local
+
+networks:
+  security:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/24
+
+  analytics:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.32.0.0/24
+
+  storage:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.33.0.0/24

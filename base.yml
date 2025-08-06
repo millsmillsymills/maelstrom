@@ -1,0 +1,749 @@
+version: '3.8'
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-deploy: &default-deploy
+  resources:
+    limits:
+      memory: 512M
+    reservations:
+      memory: 128M
+
+services:
+  influxdb:
+    image: influxdb:1.8
+    container_name: influxdb
+    ports:
+      - "127.0.0.1:8086:8086"
+    volumes:
+      - /home/mills/collections/influxdb:/var/lib/influxdb
+    environment:
+      - INFLUXDB_DB=${INFLUXDB_DB}
+      - INFLUXDB_HTTP_AUTH_ENABLED=${INFLUXDB_HTTP_AUTH_ENABLED}
+      - INFLUXDB_ADMIN_USER=${INFLUXDB_ADMIN_USER}
+      - INFLUXDB_ADMIN_PASSWORD=${INFLUXDB_ADMIN_PASSWORD}
+    restart: unless-stopped
+    healthcheck:
+      # Test: Check if InfluxDB HTTP API responds and database is accessible
+      test: ["CMD", "curl", "-f", "http://localhost:8086/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    logging: *default-logging
+    deploy: *default-deploy
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.2
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - /home/mills/collections/grafana:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USERNAME}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,natel-discrete-panel,grafana-piechart-panel
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_LOG_LEVEL=warn
+      - TZ=${TZ}
+    depends_on:
+      - influxdb
+    restart: unless-stopped
+    healthcheck:
+      # Test: Check if Grafana web interface responds and is ready
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    user: "472:472"
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    logging: *default-logging
+    deploy:
+      mode: replicated
+      replicas: 2
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.3
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - /home/mills/collections/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=90d'
+      - '--storage.tsdb.retention.size=50GB'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.external-url=http://localhost:9090'
+      - '--web.route-prefix=/'
+      - '--web.enable-admin-api'
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped
+    healthcheck:
+      # Test: Check if Prometheus API responds and is ready
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    user: "nobody:nobody"
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 1G
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.43
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - /home/mills/collections/alertmanager:/etc/alertmanager:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+      - '--web.route-prefix=/'
+    restart: unless-stopped
+    healthcheck:
+      # Test: Check if Alertmanager API responds and is ready
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    user: "nobody:nobody"
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=50m
+    logging: *default-logging
+    deploy:
+      mode: replicated
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.16
+
+  unpoller:
+    image: ghcr.io/unpoller/unpoller:${POLLER_TAG}
+    container_name: unpoller
+    depends_on:
+      - influxdb
+    environment:
+      - UP_INFLUXDB_DB=${INFLUXDB_DB}
+      - UP_INFLUXDB_USER=${INFLUXDB_ADMIN_USER}
+      - UP_INFLUXDB_PASS=${INFLUXDB_ADMIN_PASSWORD}
+      - UP_INFLUXDB_URL=http://influxdb:8086
+      - UP_UNIFI_DEFAULT_USER=${UNIFI_USER}
+      - UP_UNIFI_DEFAULT_PASS=${UNIFI_PASS}
+      - UP_UNIFI_DEFAULT_URL=${UNIFI_URL}
+      - UP_POLLER_DEBUG=${POLLER_DEBUG}
+      - UP_UNIFI_DEFAULT_SAVE_DPI=${POLLER_SAVE_DPI}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=50m
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 128M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.42
+
+  telegraf:
+    image: telegraf:1.27
+    container_name: telegraf
+    ports:
+      - "127.0.0.1:9273:9273"
+    volumes:
+      - /home/mills/collections/telegraf:/etc/telegraf:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/host/sys:ro
+      - /proc:/host/proc:ro
+      - /etc:/host/etc:ro
+    environment:
+      - HOST_ETC=/host/etc
+      - HOST_PROC=/host/proc
+      - HOST_SYS=/host/sys
+      - HOST_VAR=/host/var
+      - HOST_RUN=/host/run
+      - HOST_MOUNT_PREFIX=/host
+    restart: unless-stopped
+    user: "root"
+    pid: "host"
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 128M
+    depends_on:
+      - influxdb
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.41
+
+  plex-data-collector:
+    build: /home/mills/collections/Plex-Data-Collector-For-InfluxDB
+    container_name: plex-data-collector
+    depends_on:
+      - influxdb
+    environment:
+      - PLEX_CHIMERA_IP=${PLEX_CHIMERA_IP}
+      - PLEX_CHIMERA_AUTH_TOKEN=${PLEX_CHIMERA_AUTH_TOKEN}
+    volumes:
+      - /home/mills/collections/Plex-Data-Collector-For-InfluxDB:/config
+    restart: unless-stopped
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.11
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /cgroup:/cgroup:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 128M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.12
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "127.0.0.1:9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    user: "nobody:nobody"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=50m
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 128M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.13
+
+  mysql-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: mysql-exporter
+    environment:
+      - DATA_SOURCE_NAME=zabbix:${ZABBIX_DB_PASSWORD}@tcp(zabbix-mysql:3306)/
+      - collect.info_schema.processlist=true
+      - collect.info_schema.innodb_tablespaces=true
+      - collect.info_schema.innodb_metrics=true
+    ports:
+      - "127.0.0.1:9104:9104"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    user: "root:root"
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=50m
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 128M
+    depends_on:
+      - zabbix-mysql
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.40
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:latest
+    container_name: blackbox-exporter
+    ports:
+      - "127.0.0.1:9115:9115"
+    volumes:
+      - /home/mills/networking/collections/blackbox:/etc/blackbox_exporter:ro
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    user: "nobody:nobody"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=50m
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 128M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.15
+
+  snmp-exporter:
+    image: prom/snmp-exporter:latest
+    container_name: snmp-exporter
+    ports:
+      - "127.0.0.1:9116:9116"
+    volumes:
+      - /home/mills/networking/collections/snmp:/etc/snmp_exporter:ro
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    user: "nobody:nobody"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=50m
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 128M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.20
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - /home/mills/collections/loki:/etc/loki
+      - loki_data:/tmp/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    user: "1000:1000"
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 128M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.18
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - /home/mills/collections/promtail:/etc/promtail
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    user: "root"
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 128M
+    depends_on:
+      - loki
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.19
+
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    networks:
+      pihole_macvlan:
+        ipv4_address: 192.168.1.250
+    volumes:
+      - /home/mills/collections/pihole:/etc/pihole:rw
+      - /home/mills/collections/pihole-dnsmasq.d:/etc/dnsmasq.d:rw
+    cap_add:
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - TZ=${TZ}
+      - WEBPASSWORD=${PIHOLE_PASSWORD}
+      - PIHOLE_DNS_=1.1.1.1;8.8.8.8
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "dig", "+short", "+norecurse", "+retry=0", "@127.0.0.1", "pi.hole"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  pihole-secondary:
+    image: pihole/pihole:latest
+    container_name: pihole-secondary
+    ports:
+      - "127.0.0.1:8053:80"
+      - "53:53/tcp"
+      - "53:53/udp"
+    volumes:
+      - /home/mills/collections/pihole-secondary:/etc/pihole:rw
+      - /home/mills/collections/pihole-secondary-dnsmasq.d:/etc/dnsmasq.d:rw
+    cap_add:
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - TZ=${TZ}
+      - WEBPASSWORD=${PIHOLE_PASSWORD}
+      - PIHOLE_DNS_=1.1.1.1;8.8.8.8
+      - WEB_PORT=80
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "dig", "+short", "+norecurse", "+retry=0", "@127.0.0.1", "pi.hole"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 128M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.25
+
+  zabbix-server:
+    image: zabbix/zabbix-server-mysql:latest
+    container_name: zabbix-server
+    environment:
+      - DB_SERVER_HOST=${ZABBIX_DB_HOST}
+      - MYSQL_DATABASE=${ZABBIX_DB_NAME}
+      - MYSQL_USER=${ZABBIX_DB_USER}
+      - MYSQL_PASSWORD=${ZABBIX_DB_PASSWORD}
+    depends_on:
+      - zabbix-mysql
+    ports:
+      - "10051:10051"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    user: "1997:1997"
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.7
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-mysql:latest
+    container_name: zabbix-web
+    environment:
+      - ZBX_SERVER_HOST=zabbix-server
+      - DB_SERVER_HOST=${ZABBIX_DB_HOST}
+      - MYSQL_DATABASE=${ZABBIX_DB_NAME}
+      - MYSQL_USER=${ZABBIX_DB_USER}
+      - MYSQL_PASSWORD=${ZABBIX_DB_PASSWORD}
+      - PHP_TZ=${TZ}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - zabbix-mysql
+      - zabbix-server
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    user: "1997:1997"
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.8
+
+  zabbix-mysql:
+    image: mysql:8.0
+    container_name: zabbix-mysql
+    environment:
+      - MYSQL_DATABASE=${ZABBIX_DB_NAME}
+      - MYSQL_USER=${ZABBIX_DB_USER}
+      - MYSQL_PASSWORD=${ZABBIX_DB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${ZABBIX_MYSQL_ROOT_PASSWORD}
+    command: >
+      --character-set-server=utf8
+      --collation-server=utf8_bin
+      --log-bin-trust-function-creators=ON
+      --slow-query-log=ON
+      --slow-query-log-file=/var/log/mysql/mysql-slow.log
+      --long-query-time=3
+      --log-queries-not-using-indexes=ON
+      --default-authentication-plugin=mysql_native_password
+      --innodb-buffer-pool-size=256M
+    volumes:
+      - /home/mills/collections/zabbix-mysql:/var/lib/mysql
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.9
+
+  slack-notifier:
+    image: python:3.11-slim
+    container_name: slack-notifier
+    ports:
+      - "5001:5001"
+    volumes:
+      - /home/mills/collections/slack-notifier:/app
+    working_dir: /app
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+    command: bash -c "pip install -r requirements.txt && python slack_notifier.py"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    logging: *default-logging
+    deploy:
+      mode: replicated
+      replicas: 2
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.21
+
+  network-discovery:
+    image: python:3.11-slim
+    container_name: network-discovery
+    volumes:
+      - /home/mills/networking/collections/network-discovery:/app
+    working_dir: /app
+    command: bash -c "apt-get update && apt-get install -y iputils-ping && pip install -r requirements.txt && python network_scanner.py"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          memory: 128M
+    depends_on:
+      - influxdb
+      - prometheus
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.22
+
+  swag:
+    image: lscr.io/linuxserver/swag:latest
+    container_name: swag
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ}
+      - URL=${SWAG_DOMAIN}
+      - VALIDATION=${SWAG_VALIDATION}
+      - DNSPLUGIN=${SWAG_DNSPLUGIN}
+      - EMAIL=${SWAG_EMAIL}
+      - ONLY_SUBDOMAINS=${SWAG_ONLY_SUBDOMAINS}
+      - STAGING=${SWAG_STAGING}
+      - CERTPROVIDER=${SWAG_CERT_PROVIDER}
+    volumes:
+      - /home/mills/collections/swag:/config
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.39
+
+volumes:
+  alertmanager_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  loki_data:
+    driver: local
+
+networks:
+  monitoring:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+  pihole_macvlan:
+    driver: macvlan
+    driver_opts:
+      parent: ens3
+    ipam:
+      config:
+        - subnet: 192.168.1.0/24
+          gateway: 192.168.1.1
