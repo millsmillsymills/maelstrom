@@ -1,0 +1,207 @@
+# Maelstrom Monitoring Stack - Git Ignore File
+
+# Secrets and credentials
+.env.local
+.env.*.local
+*.key
+*.pem
+*.crt
+**/secrets/
+**/certs/
+**/ssl/
+**/keys/
+
+# Sensitive configuration files
+collections/*/auth/
+collections/*/secrets/
+api_keys.json
+*password*
+*secret*
+*token*
+
+# Data directories - persistent volumes
+collections/influxdb/data/
+collections/influxdb/meta/
+collections/influxdb/wal/
+collections/prometheus_data/
+collections/grafana_data/
+collections/grafana/grafana.db
+collections/loki/chunks/
+collections/loki/boltdb-shipper-*/
+collections/zabbix-mysql/
+collections/mysql/
+collections/elasticsearch/
+collections/wazuh_*/
+
+# Logs
+logs/
+*.log
+**/*.log
+collections/*/logs/
+collections/suricata/suricata.log
+collections/zeek/current/
+output/*/progress.log
+output/*/stack_fix.log
+
+# Backups
+backups/
+backup_*.tar.gz
+*.backup
+*.sql.gz
+collections/*/backup/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+*~
+.#*
+\#*\#
+
+# Docker temporary files
+.dockerignore.tmp
+docker-compose.override.yml
+docker-compose.*.override.yml
+
+# Development and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+
+# Node.js (if any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Package managers
+vendor/
+.bundle/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Output directories from analysis tools
+output/*/
+output/*/*.sh
+output/*/*.env
+security-scans/
+
+# Monitoring specific temporary files
+collections/grafana/png/
+collections/grafana/pdf/
+collections/grafana/csv/
+collections/prometheus/data/
+collections/loki/boltdb-shipper-active/
+collections/loki/boltdb-shipper-cache/
+collections/ntopng/ntopng.pid
+collections/jaeger/data/
+
+# Build artifacts and generated files (if any)
+dist/
+build/
+*.egg-info/
+.tox/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.nyc_output/
+
+# Documentation build
+docs/_build/
+site/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Local development overrides
+docker-compose.local.yml
+docker-compose.dev.yml
+.env.development
+.env.staging
+
+# Health check and validation temporary files
+/tmp/stack_validation_*.log
+/tmp/influxdb_backup_test_*
+/tmp/trivy_*
+
+# Large data files that shouldn't be versioned
+*.large
+collections/*/data/
+collections/*/var/
+collections/influxdb/
+collections/prometheus_data/
+collections/grafana/data/
+collections/loki/data/
+
+# Generated certificates and authentication files
+collections/swag/ssl/
+collections/swag/keys/
+collections/alertmanager/ssl/
+collections/prometheus/ssl/
+collections/grafana/ssl/
+
+# Plugin directories (downloaded/generated)
+collections/grafana/plugins/
+
+# Auto-generated configuration files
+collections/*/auto-generated/
+
+# Keep directory structure but ignore contents for certain dirs
+collections/*/logs/*
+!collections/*/logs/.gitkeep
+collections/*/tmp/*
+!collections/*/tmp/.gitkeep
+collections/*/cache/*
+!collections/*/cache/.gitkeep
+
+# Specific log files from services
+output/*_48h.log
+collections/suricata/suricata.log.*
+collections/zeek/current/*.log
+
+# Backup metadata but not actual backups
+*.backup.metadata
+!backup_scripts/
+
+# Version control
+.git/hooks/pre-push.local
+.git/hooks/pre-commit.local
