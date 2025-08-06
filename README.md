@@ -9,10 +9,66 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 
 | Key Metric       | Value             |
 |------------------|------------------|
-| Stack Health     | 🟠 Impaired |
+| Stack Health     | 🟡 Degraded |
 | Critical Alerts  | ✅ None |
-| Failing Services | 3 |
-| Last Check       | 2025-08-06 19:58 UTC |
+| Failing Services | 1 |
+| Last Check       | 2025-08-06 21:56 UTC |
+
+**Failing Services:**
+- wazuh-manager (restarting)
+
+**Failing Services:**
+- wazuh-manager (restarting)
+
+**Failing Services:**
+- wazuh-manager (restarting)
+
+**Failing Services:**
+- wazuh-manager (restarting)
+
+**Failing Services:**
+- zabbix-web (unhealthy)
+- prometheus (restarting)
+
+**Failing Services:**
+- wazuh-manager (restarting)
+- zabbix-web (unhealthy)
+- prometheus (restarting)
+
+**Failing Services:**
+- wazuh-manager (restarting)
+- zabbix-web (unhealthy)
+- prometheus (restarting)
+
+**Failing Services:**
+- wazuh-manager (restarting)
+- zabbix-web (unhealthy)
+- prometheus (restarting)
+
+**Failing Services:**
+- wazuh-manager (restarting)
+- zabbix-web (unhealthy)
+- prometheus (restarting)
+
+**Failing Services:**
+- wazuh-manager (restarting)
+- zabbix-web (unhealthy)
+- prometheus (restarting)
+
+**Failing Services:**
+- wazuh-manager (restarting)
+- zabbix-web (unhealthy)
+- prometheus (restarting)
+
+**Failing Services:**
+- wazuh-manager (restarting)
+- zabbix-web (unhealthy)
+- prometheus (restarting)
+
+**Failing Services:**
+- wazuh-manager (restarting)
+- zabbix-web (unhealthy)
+- prometheus (restarting)
 
 **Failing Services:**
 - wazuh-manager (restarting)
@@ -42,20 +98,16 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 <!-- STATUS-BEGIN -->
 | Key Metric       | Value             |
 |------------------|------------------|
-| Stack Health     | 🟠 Impaired |
+| Stack Health     | 🟡 Degraded |
 | Critical Alerts  | ✅ None |
-| Failing Services | 3 |
-| Last Check       | 2025-08-06 19:58 UTC |
+| Failing Services | 1 |
+| Last Check       | 2025-08-06 21:56 UTC |
 
 **Failing Services:**
 - wazuh-manager (restarting)
-- zabbix-web (unhealthy)
-- prometheus (restarting)
 
 **Failing Services:**
 - wazuh-manager (restarting)
-- zabbix-web (unhealthy)
-- prometheus (restarting)
 <!-- STATUS-END -->
 
 ## 🏗️ Architecture Overview
