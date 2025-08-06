@@ -12,7 +12,10 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 | Stack Health     | 🟡 Degraded |
 | Critical Alerts  | ✅ None |
 | Failing Services | 1 |
-| Last Check       | 2025-08-06 21:56 UTC |
+| Last Check       | 2025-08-06 22:27 UTC |
+
+**Failing Services:**
+- mysql-exporter (restarting)
 
 **Failing Services:**
 - wazuh-manager (restarting)
@@ -101,13 +104,13 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 | Stack Health     | 🟡 Degraded |
 | Critical Alerts  | ✅ None |
 | Failing Services | 1 |
-| Last Check       | 2025-08-06 21:56 UTC |
+| Last Check       | 2025-08-06 22:27 UTC |
 
 **Failing Services:**
-- wazuh-manager (restarting)
+- mysql-exporter (restarting)
 
 **Failing Services:**
-- wazuh-manager (restarting)
+- mysql-exporter (restarting)
 <!-- STATUS-END -->
 
 ## 🏗️ Architecture Overview
