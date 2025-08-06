@@ -12,7 +12,17 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 | Stack Health     | 🟠 Impaired |
 | Critical Alerts  | ✅ None |
 | Failing Services | 3 |
-| Last Check       | 2025-08-06 19:45 UTC |
+| Last Check       | 2025-08-06 19:58 UTC |
+
+**Failing Services:**
+- wazuh-manager (restarting)
+- zabbix-web (unhealthy)
+- prometheus (restarting)
+
+**Failing Services:**
+- wazuh-manager (restarting)
+- zabbix-web (unhealthy)
+- prometheus (restarting)
 
 **Failing Services:**
 - wazuh-manager (restarting)
@@ -35,7 +45,7 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 | Stack Health     | 🟠 Impaired |
 | Critical Alerts  | ✅ None |
 | Failing Services | 3 |
-| Last Check       | 2025-08-06 19:45 UTC |
+| Last Check       | 2025-08-06 19:58 UTC |
 
 **Failing Services:**
 - wazuh-manager (restarting)
