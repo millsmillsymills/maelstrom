@@ -456,9 +456,7 @@ services:
     image: prom/mysqld-exporter:latest
     container_name: mysql-exporter
     environment:
-      - DATA_SOURCE_NAME=zabbix:MRC1hzg2xvy8bpz%2Auhf@tcp(zabbix-mysql:3306)/zabbix
-    # volumes:
-    #   - /home/mills/collections/mysql-exporter/.my.cnf:/etc/mysql/.my.cnf:ro
+      - DATA_SOURCE_NAME=root:${ZABBIX_MYSQL_ROOT_PASSWORD}@tcp(zabbix-mysql:3306)/?parseTime=true
     ports:
       - "127.0.0.1:9104:9104"
     restart: unless-stopped
@@ -1560,6 +1558,40 @@ services:
     networks:
       monitoring:
         ipv4_address: 172.30.0.46
+
+  # Maelstrom Orchestration API
+  maelstrom-api:
+    build:
+      context: /home/mills/maelstrom-api
+      dockerfile: Dockerfile
+    container_name: maelstrom-api
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - RESURGENT_IP=${RESURGENT_IP}
+      - API_USERNAME=maelstrom_admin
+      - API_PASSWORD=${GRAFANA_ADMIN_PASS}
+      - TZ=${TZ}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          memory: 128M
+    networks:
+      monitoring:
+        ipv4_address: 172.30.0.47
 
 volumes:
   alertmanager_data:

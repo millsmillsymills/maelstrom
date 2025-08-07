@@ -1,0 +1,83 @@
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alertmanager@maelstrom.local'
+  smtp_auth_username: 'alertmanager@maelstrom.local'
+  smtp_auth_password: 'password'
+
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+route:
+  group_by: ['host', 'service', 'alertname']
+  group_wait: 5m
+  group_interval: 5m
+  repeat_interval: 2h
+  receiver: 'web.hook'
+  routes:
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 30s
+      repeat_interval: 30m
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 2m
+      repeat_interval: 1h
+    - match:
+        host: resurgent
+      receiver: 'resurgent-alerts'
+      group_by: ['host', 'alertname']
+      group_wait: 1m
+      repeat_interval: 1h
+    - match:
+        service: wazuh
+      receiver: 'security-alerts'
+      group_wait: 1m
+      repeat_interval: 30m
+
+inhibit_rules:
+  - source_match:
+      alertname: 'InfrastructureDown'
+    target_match:
+      alertname: 'ServiceDown'
+    equal: 
+      - 'instance'
+  
+  - source_match:
+      alertname: 'NodeDown'
+    target_match_re:
+      alertname: '(ServiceUnavailable|HighLatency|DiskSpaceWarn)'
+    equal: 
+      - 'instance'
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'dev', 'instance']
+
+receivers:
+- name: 'web.hook'
+  webhook_configs:
+  - url: 'http://slack-notifier:5001/webhook'
+    send_resolved: true
+
+- name: 'critical-alerts'
+  webhook_configs:
+  - url: 'http://slack-notifier:5001/webhook'
+    send_resolved: true
+
+- name: 'warning-alerts'
+  webhook_configs:
+  - url: 'http://slack-notifier:5001/webhook'
+    send_resolved: true
+
+- name: 'resurgent-alerts'
+  webhook_configs:
+  - url: 'http://slack-notifier:5001/webhook'
+    send_resolved: true
+
+- name: 'security-alerts'
+  webhook_configs:
+  - url: 'http://slack-notifier:5001/webhook'
+    send_resolved: true

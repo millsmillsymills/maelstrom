@@ -1,0 +1,127 @@
+groups:
+- name: resurgent.slo.rules
+  interval: 30s
+  rules:
+  - alert: ResurgentExporterDown
+    expr: up{host="resurgent"} == 0
+    for: 5m
+    labels:
+      severity: critical
+      host: resurgent
+      service: monitoring
+      slo_type: availability
+    annotations:
+      summary: "Resurgent exporter is down"
+      description: "{{ $labels.instance }} on Resurgent has been down for more than 5 minutes"
+      runbook_url: "https://maelstrom.local/runbooks/resurgent-exporter-down"
+
+  - alert: ResurgentNodeExporterDown
+    expr: up{job="unraid-resurgent", instance=~"192.168.1.115:9100"} == 0
+    for: 5m
+    labels:
+      severity: critical
+      host: resurgent
+      service: node-exporter
+      slo_type: availability
+    annotations:
+      summary: "Resurgent Node Exporter is unreachable"
+      description: "Node Exporter on Resurgent ({{ $labels.instance }}) has been unreachable for more than 5 minutes"
+
+  - alert: ResurgentCAdvisorDown
+    expr: up{job="unraid-resurgent", instance=~"192.168.1.115:8081"} == 0
+    for: 5m
+    labels:
+      severity: critical  
+      host: resurgent
+      service: cadvisor
+      slo_type: availability
+    annotations:
+      summary: "Resurgent cAdvisor is unreachable"
+      description: "cAdvisor on Resurgent ({{ $labels.instance }}) has been unreachable for more than 5 minutes"
+
+- name: loki.slo.rules
+  interval: 60s
+  rules:
+  - alert: LokiIngestionLag
+    expr: (time() - loki_ingester_latest_seen_sample_timestamp_seconds) > 120
+    for: 2m
+    labels:
+      severity: warning
+      service: loki
+      slo_type: latency
+    annotations:
+      summary: "Loki ingestion lag detected"
+      description: "Loki ingestion lag is {{ $value }} seconds, exceeding 2 minute threshold"
+
+  - alert: LokiQueryLatency
+    expr: histogram_quantile(0.95, rate(loki_request_duration_seconds_bucket{route="loki_api_v1_query_range"}[5m])) > 10
+    for: 5m
+    labels:
+      severity: warning
+      service: loki
+      slo_type: latency  
+    annotations:
+      summary: "Loki query latency high"
+      description: "95th percentile query latency is {{ $value }}s, exceeding 10s threshold"
+
+- name: wazuh.slo.rules
+  interval: 60s
+  rules:
+  - alert: WazuhAgentOffline
+    expr: absent_over_time(wazuh_agent_status{host="resurgent"}[15m])
+    for: 15m
+    labels:
+      severity: warning
+      host: resurgent
+      service: wazuh
+      slo_type: connectivity
+    annotations:
+      summary: "Wazuh agent on Resurgent is offline"
+      description: "Wazuh agent on Resurgent has been offline for more than 15 minutes"
+
+  - alert: WazuhManagerDown
+    expr: up{job=~"wazuh.*"} == 0
+    for: 5m
+    labels:
+      severity: critical
+      service: wazuh
+      slo_type: availability
+    annotations:
+      summary: "Wazuh Manager is down"
+      description: "Wazuh Manager service {{ $labels.instance }} has been down for more than 5 minutes"
+
+- name: infrastructure.slo.rules
+  interval: 30s
+  rules:
+  - alert: PrometheusDown
+    expr: up{job="prometheus"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      service: prometheus
+      slo_type: availability
+    annotations:
+      summary: "Prometheus is down"
+      description: "Prometheus monitoring system is unreachable"
+
+  - alert: AlertmanagerDown
+    expr: up{job="alertmanager"} == 0
+    for: 2m
+    labels:
+      severity: critical
+      service: alertmanager
+      slo_type: availability
+    annotations:
+      summary: "Alertmanager is down"
+      description: "Alertmanager service is unreachable, alerts may not be delivered"
+
+  - alert: GrafanaDown
+    expr: up{job="grafana"} == 0
+    for: 3m
+    labels:
+      severity: warning
+      service: grafana
+      slo_type: availability
+    annotations:
+      summary: "Grafana is down"
+      description: "Grafana dashboard service is unreachable"

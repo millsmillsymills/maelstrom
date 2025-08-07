@@ -1,0 +1,157 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+  - "enhanced_alert_rules.yml"
+  - "enhanced_critical_alerts.yml"
+  - "enhanced-recording-rules.yml"
+  - "advanced-alerting-rules.yml"
+  - "slo-alert-rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'unifi'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['unpoller:9130']
+    metrics_path: /metrics
+
+  - job_name: 'unraid-node'
+    static_configs:
+      - targets: ['192.168.1.239:9100']
+    scrape_interval: 15s
+
+  - job_name: 'unraid-custom'
+    static_configs:
+      - targets: ['unraid-prometheus-exporter:9200']
+    scrape_interval: 30s
+
+  - job_name: 'plex'
+    static_configs:
+      - targets: ['plex-exporter:9594']
+    scrape_interval: 60s
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+
+  - job_name: 'mysql-exporter'
+    static_configs:
+      - targets: ['mysql-exporter:9104']
+    scrape_interval: 30s
+
+  - job_name: 'telegraf'
+    static_configs:
+      - targets: ['telegraf:9273']
+    scrape_interval: 30s
+
+  - job_name: 'influxdb'
+    static_configs:
+      - targets: ['influxdb:8086']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://grafana:3000
+        - http://influxdb:8086
+        - http://192.168.1.250  # Pi-hole Primary
+        - http://172.30.0.25:80  # Pi-hole Secondary
+        - https://192.168.1.1:8443  # UniFi Controller
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  - job_name: 'blackbox-tcp'
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets:
+        - zabbix-mysql:3306
+        - zabbix-server:10051
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  - job_name: 'blackbox-icmp'
+    metrics_path: /probe
+    params:
+      module: [icmp]
+    static_configs:
+      - targets:
+        - 192.168.1.1      # Gateway
+        - 192.168.1.250    # Pi-hole Primary
+        - 172.30.0.25      # Pi-hole Secondary
+        - 192.168.1.115    # Unraid (Plex Server 1)
+        - 192.168.1.211    # Plex Server 2
+        - 192.168.1.239    # Maelstrom
+        - 8.8.8.8          # External DNS
+        - 1.1.1.1          # Cloudflare DNS
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  - job_name: 'unraid-resurgent'
+    static_configs:
+      - targets: 
+        - '192.168.1.115:9100'  # Node Exporter
+        - '192.168.1.115:8081'  # cAdvisor
+        labels:
+          env: 'prod'
+          site: 'homelab'
+          host_role: 'unraid'
+          host: 'resurgent'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  - job_name: 'snmp'
+    static_configs:
+      - targets:
+        - 192.168.1.1  # Gateway/Router
+        # - 192.168.1.100  # Add your switch IP
+        # - 192.168.1.200  # Add your UPS IP
+    metrics_path: /snmp
+    params:
+      module: [if_mib]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: snmp-exporter:9116
