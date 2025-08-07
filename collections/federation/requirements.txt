@@ -1,0 +1,7 @@
+requests==2.31.0
+influxdb==5.3.1
+aiohttp==3.8.5
+asyncio-mqtt==0.13.0
+cryptography==41.0.3
+pyjwt==2.8.0
+prometheus-client==0.17.1

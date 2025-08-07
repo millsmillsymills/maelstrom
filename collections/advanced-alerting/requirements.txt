@@ -1,0 +1,6 @@
+requests==2.31.0
+influxdb==5.3.1
+asyncio-smtp==1.1.0
+twilio==8.5.0
+pagerduty==0.2.1
+jinja2==3.1.2
