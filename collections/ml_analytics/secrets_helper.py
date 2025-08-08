@@ -5,7 +5,7 @@ Provides secure secret retrieval and connection URL helpers.
 """
 
 import os
-from pathlib import Path
+import pathlib
 from typing import Optional
 
 
@@ -22,7 +22,7 @@ def read_secret(secret_name: str, fallback_env: Optional[str] = None, required: 
         The secret value as a string, or None when not required and missing.
     """
     # Try reading from Docker secrets mount (or local test path via patched Path)
-    secret_path = Path(f"/secrets/{secret_name}")
+    secret_path = pathlib.Path(f"/secrets/{secret_name}")
     if secret_path.exists():
         value = secret_path.read_text().strip()
         if value:
@@ -96,4 +96,3 @@ def get_api_key(service: str) -> str:
 
     # Match unit test expectation for invalid services
     raise ValueError(f"Unknown service: {service}")
-

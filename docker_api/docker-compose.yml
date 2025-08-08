@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  docker-api:
+    build: ..
+    image: maelstrom/docker-api:latest
+    container_name: docker-api
+    environment:
+      - API_KEY=${API_KEY:-changeme}
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true

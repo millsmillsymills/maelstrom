@@ -1,0 +1,10 @@
+services:
+  grafana:
+    container_name: null
+    deploy: null
+  alertmanager:
+    container_name: null
+    deploy: null
+  slack-notifier:
+    container_name: null
+    deploy: null
