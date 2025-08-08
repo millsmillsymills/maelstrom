@@ -147,7 +147,7 @@ class IoTDeviceMonitor:
     def setup_database(self):
         """Setup InfluxDB connection for IoT metrics storage"""
         try:
-            from secrets_helper import get_database_url
+            from collections.ml_analytics.secrets_helper import get_database_url
             db_url = get_database_url('influxdb')
             
             # Parse connection URL
@@ -1035,7 +1035,7 @@ class IoTDeviceMonitor:
     async def send_monitoring_update(self):
         """Send periodic monitoring updates"""
         try:
-            from secrets_helper import get_slack_webhook
+            from collections.ml_analytics.secrets_helper import get_slack_webhook
             webhook_url = get_slack_webhook()
             
             if webhook_url:

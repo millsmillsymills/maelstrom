@@ -440,7 +440,7 @@ This is an automated alert from the Maelstrom Monitoring System.""",
                                     template: NotificationTemplate):
         """Send Slack notification"""
         try:
-            from secrets_helper import get_slack_webhook
+            from collections.ml_analytics.secrets_helper import get_slack_webhook
             webhook_url = get_slack_webhook()
             
             if not webhook_url:
@@ -538,7 +538,7 @@ class AlertOrchestrator:
     def setup_database(self):
         """Setup InfluxDB connection for metrics and alerts"""
         try:
-            from secrets_helper import get_database_url
+            from collections.ml_analytics.secrets_helper import get_database_url
             db_url = get_database_url('influxdb')
             
             # Parse connection URL

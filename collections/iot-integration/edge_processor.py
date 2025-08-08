@@ -120,7 +120,7 @@ class EdgeDataProcessor:
     def setup_database(self):
         """Setup InfluxDB connection for processed data storage"""
         try:
-            from secrets_helper import get_database_url
+            from collections.ml_analytics.secrets_helper import get_database_url
             db_url = get_database_url('influxdb')
             
             # Parse connection URL
@@ -778,7 +778,7 @@ class EdgeDataProcessor:
     async def send_alerts(self, device_id: str, alerts: List[Dict[str, Any]]):
         """Send alerts for processed data"""
         try:
-            from secrets_helper import get_slack_webhook
+            from collections.ml_analytics.secrets_helper import get_slack_webhook
             webhook_url = get_slack_webhook()
             
             if webhook_url:
@@ -812,7 +812,7 @@ class EdgeDataProcessor:
     async def send_anomaly_notification(self, event: ProcessedEvent):
         """Send anomaly notification"""
         try:
-            from secrets_helper import get_slack_webhook
+            from collections.ml_analytics.secrets_helper import get_slack_webhook
             webhook_url = get_slack_webhook()
             
             if webhook_url:
