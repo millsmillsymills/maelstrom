@@ -31,17 +31,20 @@ log() {
 
 success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1" | tee -a "${VALIDATION_LOG}"
-    ((PASSED_TESTS++))
+    ((PASSED_TESTS++)) || true
+    return 0
 }
 
 warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1" | tee -a "${VALIDATION_LOG}"
-    ((WARNINGS++))
+    ((WARNINGS++)) || true
+    return 0
 }
 
 error() {
     echo -e "${RED}[ERROR]${NC} $1" | tee -a "${VALIDATION_LOG}"
-    ((FAILED_TESTS++))
+    ((FAILED_TESTS++)) || true
+    return 0
 }
 
 test_start() {
@@ -293,7 +296,7 @@ test_health_checks() {
                 ;;
             "unhealthy")
                 error "Service ${service}: unhealthy"
-                ((unhealthy_services++))
+                ((unhealthy_services++)) || true
                 
                 if [[ ${FIX_ISSUES} == true ]]; then
                     log "Attempting to restart unhealthy service: ${service}"
