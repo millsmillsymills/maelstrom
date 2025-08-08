@@ -24,7 +24,7 @@ import shutil
 try:
     import sys
     sys.path.append('/app')
-    from secrets_helper import read_secret, get_database_url, get_slack_webhook
+    from collections.ml_analytics.secrets_helper import read_secret, get_database_url, get_slack_webhook
 except ImportError:
     # Fallback for development
     import os

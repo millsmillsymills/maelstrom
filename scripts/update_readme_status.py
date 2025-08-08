@@ -225,24 +225,12 @@ def update_readme_status():
         status_pattern = r'(<!-- STATUS-BEGIN -->).*?(<!-- STATUS-END -->)'
         replacement = f'<!-- STATUS-BEGIN -->\n{status_table}\n<!-- STATUS-END -->'
         
-        # Also update the main status table above the markers
-        main_status_pattern = r'(\| Key Metric\s+\| Value\s+\|[\s\S]*?\| Last Check\s+\|[^\n]*)'
-        
         if re.search(status_pattern, readme_content, re.DOTALL):
             # Update the status markers section
             updated_content = re.sub(status_pattern, replacement, readme_content, flags=re.DOTALL)
         else:
             print("Status markers not found in README.md", file=sys.stderr)
             return False
-        
-        # Also update the main table if it exists
-        if re.search(main_status_pattern, updated_content, re.DOTALL):
-            updated_content = re.sub(
-                main_status_pattern,
-                status_table,
-                updated_content,
-                flags=re.DOTALL
-            )
         
         # Write updated content back to README.md
         with open(readme_path, 'w') as f:

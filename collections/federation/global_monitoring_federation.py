@@ -546,7 +546,7 @@ class GlobalMonitoringFederation:
     def setup_database(self):
         """Setup InfluxDB connection for federation metrics"""
         try:
-            from secrets_helper import get_database_url
+            from collections.ml_analytics.secrets_helper import get_database_url
             db_url = get_database_url('influxdb')
             
             # Parse connection URL

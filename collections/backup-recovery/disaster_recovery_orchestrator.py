@@ -220,7 +220,7 @@ class DatabaseBackupManager:
             influx_backup_dir.mkdir(parents=True, exist_ok=True)
             
             # Get list of databases
-            from secrets_helper import get_database_url
+            from collections.ml_analytics.secrets_helper import get_database_url
             db_url = get_database_url('influxdb')
             
             if '@' in db_url:
@@ -294,7 +294,7 @@ class DatabaseBackupManager:
             mysql_backup_dir.mkdir(parents=True, exist_ok=True)
             
             # Get MySQL credentials
-            from secrets_helper import get_database_url
+            from collections.ml_analytics.secrets_helper import get_database_url
             db_url = get_database_url('mysql')
             
             if '@' in db_url:
@@ -394,7 +394,7 @@ class DisasterRecoveryOrchestrator:
     def setup_database(self):
         """Setup InfluxDB connection for backup metrics"""
         try:
-            from secrets_helper import get_database_url
+            from collections.ml_analytics.secrets_helper import get_database_url
             db_url = get_database_url('influxdb')
             
             # Parse connection URL
@@ -905,7 +905,7 @@ class DisasterRecoveryOrchestrator:
     async def send_backup_notification(self, operation: BackupOperation, target: BackupTarget):
         """Send backup completion notification"""
         try:
-            from secrets_helper import get_slack_webhook
+            from collections.ml_analytics.secrets_helper import get_slack_webhook
             webhook_url = get_slack_webhook()
             
             if webhook_url:
