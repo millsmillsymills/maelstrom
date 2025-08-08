@@ -331,6 +331,13 @@ services:
     ports:
       - "127.0.0.1:9104:9104"
     restart: unless-stopped
+    healthcheck:
+      # Verify the exporter HTTP endpoint is serving metrics
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:9104/metrics"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     security_opt:
       - no-new-privileges:true
     user: "root:root"
@@ -602,6 +609,13 @@ services:
       - MYSQL_USER=${ZABBIX_DB_USER}
       - MYSQL_PASSWORD=${ZABBIX_DB_PASSWORD}
       - MYSQL_ROOT_PASSWORD=${ZABBIX_MYSQL_ROOT_PASSWORD}
+    healthcheck:
+      # MySQL is healthy when it responds to mysqladmin ping using root credentials
+      test: ["CMD", "bash", "-lc", "mysqladmin ping -h 127.0.0.1 -u root -p$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     command: >
       --character-set-server=utf8
       --collation-server=utf8_bin
