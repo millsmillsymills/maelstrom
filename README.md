@@ -11,16 +11,17 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 <!-- STATUS-BEGIN -->
 | Key Metric       | Value             |
 |------------------|------------------|
-| Stack Health     | 🟡 Degraded |
+| Stack Health     | 🔴 Critical |
 | Critical Alerts  | ✅ None |
-| Failing Services | 1 |
-| Last Check       | 2025-08-06 22:27 UTC |
+| Failing Services | 7 |
+| Last Check       | 2025-08-08 23:30 UTC |
 
 **Failing Services:**
-- mysql-exporter (restarting)
-
-**Failing Services:**
-- mysql-exporter (restarting)
+- network-discovery (restarting)
+- slack-notifier (restarting)
+- plex-data-collector (restarting)
+- telegraf (restarting)
+- promtail (restarting)
 <!-- STATUS-END -->
 
 ## Backups Scope
@@ -179,6 +180,13 @@ docker-compose logs -f security-monitor threat-intelligence
 # View threat intelligence alerts
 docker-compose logs -f geopolitical-threat-detector
 ```
+
+### MySQL Exporter Credentials
+`prom/mysqld-exporter` reads MySQL credentials from a my.cnf file.
+- Create `secrets/mysql_exporter_my_cnf` (chmod 600) with:
+  `[client]\nuser=zabbix\npassword=<zabbix_db_password>\nhost=zabbix-mysql\nport=3306`
+- Compose mounts it at `/etc/mysql/.my.cnf` and runs with `--config.my-cnf`.
+- Rotate credentials: update the secret file, then `docker restart mysql-exporter` or `docker-compose -f base.yml up --no-deps -d --force-recreate mysql-exporter`.
 
 ## 📁 Project Structure
 
