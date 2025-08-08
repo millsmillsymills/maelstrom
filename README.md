@@ -113,6 +113,9 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 - mysql-exporter (restarting)
 <!-- STATUS-END -->
 
+## Backups Scope
+Backups target Resurgent storage only. AWS/S3 connectivity and credentials are out of scope and disabled in templates and overlays.
+
 ## 🏗️ Architecture Overview
 
 The Maelstrom stack consists of **39 containerized services** organized across **5 Docker networks**:
