@@ -26,7 +26,6 @@ services:
       - INFLUXDB_ADMIN_PASSWORD=${INFLUXDB_ADMIN_PASSWORD}
     restart: unless-stopped
     healthcheck:
-      # Test: Check if InfluxDB HTTP API responds and database is accessible
       test: ["CMD", "curl", "-f", "http://localhost:8086/ping"]
       interval: 30s
       timeout: 10s
@@ -62,7 +61,6 @@ services:
       - influxdb
     restart: unless-stopped
     healthcheck:
-      # Test: Check if Grafana web interface responds and is ready
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
@@ -75,12 +73,6 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=100m
     logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 512M
     networks:
       monitoring:
         ipv4_address: 172.30.0.3
@@ -106,7 +98,6 @@ services:
       - "127.0.0.1:9090:9090"
     restart: unless-stopped
     healthcheck:
-      # Test: Check if Prometheus API responds and is ready
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/ready"]
       interval: 30s
       timeout: 10s
@@ -144,7 +135,6 @@ services:
       - '--web.route-prefix=/'
     restart: unless-stopped
     healthcheck:
-      # Test: Check if Alertmanager API responds and is ready
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/ready"]
       interval: 30s
       timeout: 10s
@@ -157,12 +147,6 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=50m
     logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
     networks:
       monitoring:
         ipv4_address: 172.30.0.16
@@ -170,7 +154,6 @@ services:
   unpoller:
     image: ghcr.io/unpoller/unpoller:${POLLER_TAG}
     container_name: unpoller
-    profiles: [unifi]
     depends_on:
       - influxdb
     environment:
@@ -204,7 +187,6 @@ services:
   telegraf:
     image: telegraf:1.27
     container_name: telegraf
-    profiles: [telegraf]
     ports:
       - "127.0.0.1:9273:9273"
     volumes:
@@ -238,22 +220,6 @@ services:
     networks:
       monitoring:
         ipv4_address: 172.30.0.41
-
-  plex-data-collector:
-    build: /home/mills/collections/Plex-Data-Collector-For-InfluxDB
-    container_name: plex-data-collector
-    profiles: [plex]
-    depends_on:
-      - influxdb
-    environment:
-      - PLEX_CHIMERA_IP=${PLEX_CHIMERA_IP}
-      - PLEX_CHIMERA_AUTH_TOKEN=${PLEX_CHIMERA_AUTH_TOKEN}
-    volumes:
-      - /home/mills/collections/Plex-Data-Collector-For-InfluxDB:/config
-    restart: unless-stopped
-    networks:
-      monitoring:
-        ipv4_address: 172.30.0.11
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
@@ -320,7 +286,6 @@ services:
   mysql-exporter:
     image: prom/mysqld-exporter:latest
     container_name: mysql-exporter
-    profiles: [zabbix]
     environment:
       - DATA_SOURCE_NAME=zabbix:${ZABBIX_DB_PASSWORD}@tcp(zabbix-mysql:3306)/
       - collect.info_schema.processlist=true
@@ -330,7 +295,6 @@ services:
       - "127.0.0.1:9104:9104"
     restart: unless-stopped
     healthcheck:
-      # Verify the exporter HTTP endpoint is serving metrics
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:9104/metrics"]
       interval: 30s
       timeout: 5s
@@ -359,7 +323,6 @@ services:
   blackbox-exporter:
     image: prom/blackbox-exporter:latest
     container_name: blackbox-exporter
-    profiles: [networking]
     ports:
       - "127.0.0.1:9115:9115"
     volumes:
@@ -386,7 +349,6 @@ services:
   snmp-exporter:
     image: prom/snmp-exporter:latest
     container_name: snmp-exporter
-    profiles: [networking]
     ports:
       - "127.0.0.1:9116:9116"
     volumes:
@@ -413,7 +375,6 @@ services:
   loki:
     image: grafana/loki:latest
     container_name: loki
-    profiles: [logging]
     ports:
       - "127.0.0.1:3100:3100"
     volumes:
@@ -442,7 +403,6 @@ services:
   promtail:
     image: grafana/promtail:latest
     container_name: promtail
-    profiles: [logging]
     volumes:
       - /home/mills/collections/promtail:/etc/promtail
       - /var/log:/var/log:ro
@@ -469,83 +429,9 @@ services:
       monitoring:
         ipv4_address: 172.30.0.19
 
-  pihole:
-    image: pihole/pihole:latest
-    container_name: pihole
-    profiles: [networking]
-    networks:
-      pihole_macvlan:
-        ipv4_address: 192.168.1.250
-    volumes:
-      - /home/mills/collections/pihole:/etc/pihole:rw
-      - /home/mills/collections/pihole-dnsmasq.d:/etc/dnsmasq.d:rw
-    cap_add:
-      - NET_ADMIN
-    security_opt:
-      - no-new-privileges:true
-    environment:
-      - TZ=${TZ}
-      - WEBPASSWORD=${PIHOLE_PASSWORD}
-      - PIHOLE_DNS_=1.1.1.1;8.8.8.8
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "dig", "+short", "+norecurse", "+retry=0", "@127.0.0.1", "pi.hole"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 512M
-        reservations:
-          memory: 128M
-
-  pihole-secondary:
-    image: pihole/pihole:latest
-    container_name: pihole-secondary
-    profiles: [networking]
-    ports:
-      - "127.0.0.1:8053:80"
-      - "53:53/tcp"
-      - "53:53/udp"
-    volumes:
-      - /home/mills/collections/pihole-secondary:/etc/pihole:rw
-      - /home/mills/collections/pihole-secondary-dnsmasq.d:/etc/dnsmasq.d:rw
-    cap_add:
-      - NET_ADMIN
-    security_opt:
-      - no-new-privileges:true
-    environment:
-      - TZ=${TZ}
-      - WEBPASSWORD=${PIHOLE_PASSWORD}
-      - PIHOLE_DNS_=1.1.1.1;8.8.8.8
-      - WEB_PORT=80
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "dig", "+short", "+norecurse", "+retry=0", "@127.0.0.1", "pi.hole"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 512M
-        reservations:
-          memory: 128M
-    networks:
-      monitoring:
-        ipv4_address: 172.30.0.25
-
   zabbix-server:
     image: zabbix/zabbix-server-mysql:latest
     container_name: zabbix-server
-    profiles: [zabbix]
     environment:
       - DB_SERVER_HOST=${ZABBIX_DB_HOST}
       - MYSQL_DATABASE=${ZABBIX_DB_NAME}
@@ -576,7 +462,6 @@ services:
   zabbix-web:
     image: zabbix/zabbix-web-nginx-mysql:latest
     container_name: zabbix-web
-    profiles: [zabbix]
     environment:
       - ZBX_SERVER_HOST=zabbix-server
       - DB_SERVER_HOST=${ZABBIX_DB_HOST}
@@ -610,14 +495,12 @@ services:
   zabbix-mysql:
     image: mysql:8.0
     container_name: zabbix-mysql
-    profiles: [zabbix]
     environment:
       - MYSQL_DATABASE=${ZABBIX_DB_NAME}
       - MYSQL_USER=${ZABBIX_DB_USER}
       - MYSQL_PASSWORD=${ZABBIX_DB_PASSWORD}
       - MYSQL_ROOT_PASSWORD=${ZABBIX_MYSQL_ROOT_PASSWORD}
     healthcheck:
-      # MySQL is healthy when it responds to mysqladmin ping using root credentials
       test: ["CMD", "bash", "-lc", "mysqladmin ping -h 127.0.0.1 -u root -p$MYSQL_ROOT_PASSWORD"]
       interval: 10s
       timeout: 5s
@@ -655,7 +538,6 @@ services:
   slack-notifier:
     image: python:3.11-slim
     container_name: slack-notifier
-    profiles: [notifications]
     ports:
       - "5001:5001"
     volumes:
@@ -671,80 +553,9 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=100m
     logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
     networks:
       monitoring:
         ipv4_address: 172.30.0.21
-
-  network-discovery:
-    image: python:3.11-slim
-    container_name: network-discovery
-    profiles: [networking]
-    volumes:
-      - /home/mills/networking/collections/network-discovery:/app
-    working_dir: /app
-    command: bash -c "apt-get update && apt-get install -y iputils-ping && pip install -r requirements.txt && python network_scanner.py"
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    read_only: false
-    tmpfs:
-      - /tmp:rw,noexec,nosuid,size=100m
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 512M
-        reservations:
-          memory: 128M
-    depends_on:
-      - influxdb
-      - prometheus
-    networks:
-      monitoring:
-        ipv4_address: 172.30.0.22
-
-  swag:
-    image: lscr.io/linuxserver/swag:latest
-    container_name: swag
-    profiles: [reverse-proxy]
-    cap_add:
-      - NET_ADMIN
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=${TZ}
-      - URL=${SWAG_DOMAIN}
-      - VALIDATION=${SWAG_VALIDATION}
-      - DNSPLUGIN=${SWAG_DNSPLUGIN}
-      - EMAIL=${SWAG_EMAIL}
-      - ONLY_SUBDOMAINS=${SWAG_ONLY_SUBDOMAINS}
-      - STAGING=${SWAG_STAGING}
-      - CERTPROVIDER=${SWAG_CERT_PROVIDER}
-    volumes:
-      - /home/mills/collections/swag:/config
-    ports:
-      - "80:80"
-      - "443:443"
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 256M
-    networks:
-      monitoring:
-        ipv4_address: 172.30.0.39
 
 volumes:
   alertmanager_data:
@@ -769,3 +580,4 @@ networks:
       config:
         - subnet: 192.168.1.0/24
           gateway: 192.168.1.1
+
