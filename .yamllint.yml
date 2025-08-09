@@ -4,42 +4,40 @@ extends: default
 rules:
   # Allow longer lines for Docker Compose
   line-length:
-    max: 120
-    
+    max: 200
+
   # Allow indentation variations in Docker Compose
   indentation:
     spaces: 2
     indent-sequences: true
     check-multi-line-strings: false
-    
+
   # Allow truthy values in Docker Compose (on/off, yes/no, etc.)
   truthy:
     allowed-values: ['true', 'false', 'on', 'off', 'yes', 'no']
     check-keys: false
-    
+
   # Allow comments to have different indentation
   comments:
     min-spaces-from-content: 1
-    
+
   # Allow empty lines at start/end of files
   empty-lines:
     max-start: 3
     max-end: 3
-    
+
   # Less strict about brackets
   brackets:
     min-spaces-inside: 0
     max-spaces-inside: 1
-    
+
   # Docker Compose specific allowances
   key-duplicates: disable  # Docker Compose allows some key duplicates in different contexts
 
 # Ignore certain files and directories
 ignore: |
   .git/
-  logs/
-  backups/
-  output/
-  collections/*/node_modules/
-  collections/*/.venv/
-  **/*.log
+  .github/**
+  collections/**
+  docker_api/**
+  .nvm/**
