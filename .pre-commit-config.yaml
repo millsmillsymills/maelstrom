@@ -111,6 +111,13 @@ repos:
         args: ['-c', 'find . -name "*.sh" -not -path "./.git/*" -not -executable -print | while read -r file; do echo "Warning: $file is not executable"; done']
         pass_filenames: false
 
+      - id: banned-github-auth-patterns
+        name: Enforce non-interactive GitHub auth
+        description: Fail on banned interactive/insecure GitHub auth patterns
+        entry: scripts/security/check_banned_github_auth.sh
+        language: system
+        pass_filenames: false
+
   # Generic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0

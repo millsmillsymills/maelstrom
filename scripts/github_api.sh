@@ -8,17 +8,17 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source auth to populate EFFECTIVE_TOKEN and env from .env, but do not require token unless we need it here.
-# This will also configure git headers, which is acceptable and idempotent.
-source "${SCRIPT_DIR}/github_auth.sh" >/dev/null || true
-
-EFFECTIVE_TOKEN="${EFFECTIVE_TOKEN:-${GITHUB_TOKEN:-${OAUTH_ACCESS_TOKEN:-}}}"
-if [[ -z "${EFFECTIVE_TOKEN}" ]]; then
-  echo "GitHub token is required for API calls." >&2
+PROJ_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# Resolve token non-interactively via central provider
+TOKEN_PROVIDER="${PROJ_ROOT}/internal/github_auth/token_provider.sh"
+if [[ ! -x "$TOKEN_PROVIDER" ]]; then
+  echo "token_provider.sh not found; expected at internal/github_auth/token_provider.sh" >&2
   exit 1
 fi
 
+AUTH_HEADER="$($TOKEN_PROVIDER --print-header)"
 curl -sS \
-  -H "Authorization: Bearer ${EFFECTIVE_TOKEN}" \
+  -H "$AUTH_HEADER" \
   -H "Accept: application/vnd.github+json" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
   "$@"

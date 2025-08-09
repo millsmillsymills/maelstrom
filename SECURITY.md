@@ -1,23 +1,15 @@
-# Security Policy
+Secret Handling and Rotation
 
-## Supported Versions
-- Active development on `main`. Security fixes are prioritized for currently deployed stacks.
+- Never commit secrets. Use `secrets/` (0600) and environment variables in CI.
+- Central GitHub auth uses OAuth2 refresh or PAT non-interactively via `internal/github_auth/`.
+- Banned patterns: interactive `gh auth login`, device-code flows, `.netrc` for GitHub, tokens in URLs, `Authorization: Basic` to api.github.com.
+- Rotation procedure:
+  - Revoke leaked tokens in the provider (GitHub settings).
+  - Purge from history using `git filter-repo` targeting exact blobs/paths, then force-push.
+  - Tag previous head as `pre-auth-scrub-<timestamp>`.
+  - Update CI secrets and re-run `auth-smoke` job.
 
-## Reporting a Vulnerability
-- Email the maintainer or open a private issue if available. Do not post secrets publicly.
-- Include: affected component, reproduction steps, logs, and impact.
-
-## Secret Management
-- Never commit real secrets. Use `secrets/` (chmod 0600) and `.env.template` as reference.
-- Docker services read secrets from files or environment; prefer file-based mounts for long-lived credentials.
-
-## Hardening & Scanning
-- Run `./validate_stack.sh --security-only` before merges.
-- Scan images with `scripts/scan_images.sh` and review findings.
-- Compose config uses restricted privileges, resource limits, and network segmentation where possible.
-
-## Incident Response
-- Quarantine affected services via `docker-compose stop <service>`.
-- Rotate credentials: update secret files and restart dependent services.
-- Review Wazuh/Suricata/Zeek dashboards and Alertmanager routes for ongoing threats.
+If you detect a leak:
+- Open an incident issue and rotate credentials immediately.
+- Provide redacted details and affected paths/commits. Do not include secret values.
 
