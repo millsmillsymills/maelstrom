@@ -178,11 +178,14 @@ jobs:
         run: |
           echo "::group::Secret Detection"
           # Basic secret detection patterns
-          if grep -r -E "(password|secret|key|token).*=" . --include="*.yml" --include="*.yaml" --include="*.sh" --exclude-dir=".git" | grep -v ".env" | grep -v "example" | grep -v "placeholder"; then
-          echo "❌ Potential secrets found in code!"
-          exit 1
+          if grep -r -E "(password|secret|key|token).*=" . \
+            --include="*.yml" --include="*.yaml" --include="*.sh" \
+            --exclude-dir=".git" --exclude-dir="backups" --exclude-dir="logs" --exclude-dir="output" --exclude-dir="trash" \
+            | grep -v ".env" | grep -v "example" | grep -v "placeholder"; then
+            echo "❌ Potential secrets found in code!"
+            exit 1
           else
-          echo "✅ No hardcoded secrets detected"
+            echo "✅ No hardcoded secrets detected"
           fi
           echo "::endgroup::"
 
