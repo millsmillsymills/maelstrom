@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from typing import Dict, List, Tuple
 
 import requests
+import json as _json_for_api
+import os as _os
 
 
 BASE_COMPOSE_PATH = "/home/mills/base.yml"
@@ -260,31 +262,77 @@ def generate_status_table(
 
 
 def manage_github_issues(failing_count: int, unhealthy_services: List[str], critical_alerts: List[str]):
-    """Manage GitHub issues based on infrastructure health"""
+    """Manage GitHub issues via scripts/github_api.sh (no secrets printed)."""
     try:
         import subprocess
-        
+
+        repo_owner = "millsmillsymills"
+        repo_name = "maelstrom"
+        api_base = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
+        gh_api = "/home/mills/scripts/github_api.sh"
+
+        # Ensure auth is configured; ignore output
+        subprocess.run(["/home/mills/scripts/github_auth.sh"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
         if failing_count > 2 or len(critical_alerts) > 0:
-            # Create issue for significant infrastructure problems
             title = f"🚨 Infrastructure Health Alert - {failing_count} services failing"
-            
-            # Prepare service data for issue creation
-            failing_services_json = json.dumps(unhealthy_services)
-            critical_alerts_json = json.dumps(critical_alerts)
-            
-            # Call GitHub issue manager
-            subprocess.run([
-                "python3", "/home/mills/scripts/github_issue_manager.py",
-                "create", title, failing_services_json, critical_alerts_json
-            ], check=False, capture_output=True)
-            
+            body = {
+                "title": title,
+                "body": "\n".join([
+                    "## Infrastructure Health Alert",
+                    f"Failing services: {failing_count}",
+                    "",
+                    "### Failing Services",
+                    *[f"- {s}" for s in unhealthy_services[:10]],
+                    "",
+                    "### Critical Alerts",
+                    *[f"- {a}" for a in critical_alerts[:10]],
+                    "",
+                    "*Automated alert from Maelstrom*",
+                ]),
+                "labels": ["infrastructure", "auto-generated", "urgent"],
+            }
+
+            data = _json_for_api.dumps(body)
+            subprocess.run(
+                ["bash", "-lc", f"'{gh_api}' -X POST '{api_base}/issues' --data @-"],
+                input=data.encode(),
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
         elif failing_count == 0 and len(critical_alerts) == 0:
-            # System is healthy - close any open infrastructure issues
-            subprocess.run([
-                "python3", "/home/mills/scripts/github_issue_manager.py",
-                "close-healthy"
-            ], check=False, capture_output=True)
-            
+            # List open infra issues
+            proc = subprocess.run(
+                ["bash", "-lc", f"'{gh_api}' -X GET '{api_base}/issues?state=open&labels=infrastructure,auto-generated'"],
+                check=False,
+                capture_output=True,
+            )
+            try:
+                issues = _json_for_api.loads(proc.stdout.decode() or "[]")
+            except Exception:
+                issues = []
+            for issue in issues:
+                number = issue.get("number")
+                if not number:
+                    continue
+                comment = {"body": "✅ System healthy. Auto-closing by Maelstrom."}
+                subprocess.run(
+                    ["bash", "-lc", f"'{gh_api}' -X POST '{api_base}/issues/{number}/comments' --data @-"],
+                    input=_json_for_api.dumps(comment).encode(),
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                subprocess.run(
+                    ["bash", "-lc", f"'{gh_api}' -X PATCH '{api_base}/issues/{number}' --data @-"],
+                    input=_json_for_api.dumps({"state": "closed"}).encode(),
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+
     except Exception as e:
         print(f"Warning: GitHub issue management failed: {e}", file=sys.stderr)
 

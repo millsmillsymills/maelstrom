@@ -204,4 +204,5 @@ collections/zeek/current/*.log
 
 # Version control
 .git/hooks/pre-push.local
-.git/hooks/pre-commit.local
+.git/hooks/pre-commit.local.auth/
+*.bundle
