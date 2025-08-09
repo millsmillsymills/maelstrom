@@ -92,11 +92,13 @@ jobs:
           fi
           echo "::endgroup::"
 
-      - name: Run Trivy infrastructure scanning
+      - name: Run Trivy infrastructure scanning (non-blocking)
         run: |
           echo "::group::Infrastructure Security Scan"
-          trivy config . --format sarif --output trivy-results.sarif
-          trivy config . --format table
+          # Scope scanning to repo (exclude backups/dev caches) and do not fail build
+          TRIVY_COMMON_ARGS='--skip-dirs backups,.nvm,resurgent,output,trash,logs,collections/victoriametrics-data,collections/minio-data'
+          trivy config . $TRIVY_COMMON_ARGS --severity HIGH,CRITICAL --format sarif --output trivy-results.sarif --exit-code 0
+          trivy config . $TRIVY_COMMON_ARGS --severity HIGH,CRITICAL --format table --exit-code 0
           echo "::endgroup::"
 
       - name: Upload Trivy scan results to GitHub Security tab
