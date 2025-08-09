@@ -11,13 +11,12 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 <!-- STATUS-BEGIN -->
 | Key Metric       | Value             |
 |------------------|------------------|
-| Stack Health     | 🟠 Impaired |
+| Stack Health     | 🟡 Degraded |
 | Critical Alerts  | ✅ None |
-| Failing Services | 3 |
-| Last Check       | 2025-08-09 02:03 UTC |
+| Failing Services | 2 |
+| Last Check       | 2025-08-09 02:05 UTC |
 
 **Failing Services:**
-- cadvisor ( starting))
 - network-discovery (restarting)
 - plex-data-collector (restarting)
 <!-- STATUS-END -->
