@@ -11,17 +11,15 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 <!-- STATUS-BEGIN -->
 | Key Metric       | Value             |
 |------------------|------------------|
-| Stack Health     | 🔴 Critical |
+| Stack Health     | 🟠 Impaired |
 | Critical Alerts  | ✅ None |
-| Failing Services | 7 |
-| Last Check       | 2025-08-08 23:30 UTC |
+| Failing Services | 3 |
+| Last Check       | 2025-08-09 02:03 UTC |
 
 **Failing Services:**
+- cadvisor ( starting))
 - network-discovery (restarting)
-- slack-notifier (restarting)
 - plex-data-collector (restarting)
-- telegraf (restarting)
-- promtail (restarting)
 <!-- STATUS-END -->
 
 ## Backups Scope
@@ -292,6 +290,8 @@ Deploy only what you need with service profiles:
 - Network interface available for MacVLAN (Pi-hole direct access)
 
 ## 🤝 Contributing
+
+Please review the contributor guide in [AGENTS.md](AGENTS.md) for repository structure, workflows, and required checks.
 
 This is a single-admin production system with no formal contribution process. However, improvements and optimizations are welcome:
 

@@ -48,6 +48,7 @@ OPTIONS:
     --dry-run          Show what would be deployed without doing it
     --stop             Stop all services
     --down             Stop and remove all services
+    --skip-backup      Skip post-deploy GitHub backup
 
 AVAILABLE PROFILES:
     ml-analytics       ML Analytics services (ml-analytics, data-optimizer, resource-optimizer)  
@@ -73,6 +74,7 @@ BASE_ONLY=false
 ALL_PROFILES=false
 COMPATIBILITY=false
 DRY_RUN=false
+SKIP_BACKUP=false
 STOP_SERVICES=false
 DOWN_SERVICES=false
 
@@ -106,6 +108,10 @@ while [[ $# -gt 0 ]]; do
             DOWN_SERVICES=true
             shift
             ;;
+        --skip-backup)
+            SKIP_BACKUP=true
+            shift
+            ;;
         ml-analytics|wazuh-stack|security-stack|analytics-stack)
             PROFILES+=("$1")
             shift
@@ -128,9 +134,23 @@ if [[ ${ALL_PROFILES} == true ]]; then
     PROFILES=("ml-analytics" "wazuh-stack" "security-stack" "analytics-stack")
 fi
 
-# Build Docker Compose command
+# Choose Compose binary (prefer v2 plugin)
+get_compose_bin() {
+    if docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        echo "docker-compose"
+    else
+        error "Docker Compose is not installed (neither plugin nor v1)"
+        exit 1
+    fi
+}
+
+# Build Docker Compose command using selected binary
 build_compose_command() {
-    local cmd="docker-compose"
+    local compose_bin
+    compose_bin=$(get_compose_bin)
+    local cmd="${compose_bin}"
     
     # Add base compose file
     cmd="${cmd} -f ${BASE_COMPOSE_FILE}"
@@ -321,22 +341,27 @@ main() {
         if [[ -x "validate_stack.sh" ]]; then
             if ./validate_stack.sh --quick --skip-security; then
                 success "Post-deployment validation passed"
-                
-                # Backup configuration to GitHub if validation passes
-                log "Backing up configuration to GitHub..."
-                if [[ -x "scripts/git_backup.sh" ]]; then
-                    local commit_message="🚀 Post-deployment config sync"
-                    if [[ ${#PROFILES[@]} -gt 0 ]]; then
-                        commit_message="$commit_message (profiles: ${PROFILES[*]})"
-                    fi
-                    
-                    if ./scripts/git_backup.sh "$commit_message"; then
-                        success "Configuration backed up to GitHub"
-                    else
-                        warning "Configuration backup failed - check logs"
-                    fi
+
+                # Optionally skip Git backup via flag or env
+                if [[ ${SKIP_BACKUP} == true || "${DEPLOY_SKIP_BACKUP:-}" == "1" ]]; then
+                    warning "Skipping GitHub backup (skip flag/env set)"
                 else
-                    warning "Git backup script not found - skipping backup"
+                    # Backup configuration to GitHub if validation passes
+                    log "Backing up configuration to GitHub..."
+                    if [[ -x "scripts/git_backup.sh" ]]; then
+                        local commit_message="🚀 Post-deployment config sync"
+                        if [[ ${#PROFILES[@]} -gt 0 ]]; then
+                            commit_message="$commit_message (profiles: ${PROFILES[*]})"
+                        fi
+
+                        if ./scripts/git_backup.sh "$commit_message"; then
+                            success "Configuration backed up to GitHub"
+                        else
+                            warning "Configuration backup failed - check logs"
+                        fi
+                    else
+                        warning "Git backup script not found - skipping backup"
+                    fi
                 fi
             else
                 warning "Post-deployment validation failed - skipping GitHub backup"

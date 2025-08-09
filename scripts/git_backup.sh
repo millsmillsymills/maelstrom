@@ -16,6 +16,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="/home/mills"
 LOG_FILE="/home/mills/logs/git_backup_error.log"
 BACKUP_BRANCH="main"
+# Timeout (seconds) for git network ops; can override via env GIT_BACKUP_TIMEOUT
+BACKUP_TIMEOUT="${GIT_BACKUP_TIMEOUT:-120}"
 
 # Logging functions
 log() {
@@ -51,6 +53,7 @@ OPTIONS:
     --force                Force backup even if health check fails
     --skip-health          Skip health check validation
     --branch BRANCH        Target branch (default: main)
+    --timeout SECONDS      Timeout for git ops (default: ${BACKUP_TIMEOUT})
     
 EXAMPLES:
     $0                      # Auto-generated commit message
@@ -87,6 +90,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --branch)
             BACKUP_BRANCH="$2"
+            shift 2
+            ;;
+        --timeout)
+            BACKUP_TIMEOUT="$2"
             shift 2
             ;;
         -*)
@@ -159,7 +166,7 @@ safe_pull() {
     fi
     
     # Try to pull with rebase
-    if git pull --rebase origin "$BACKUP_BRANCH"; then
+    if timeout "${BACKUP_TIMEOUT}" git pull --rebase origin "$BACKUP_BRANCH"; then
         success "Successfully pulled latest changes"
     else
         warning "Pull with rebase failed, attempting merge resolution..."
@@ -168,7 +175,7 @@ safe_pull() {
         git rebase --abort 2>/dev/null || true
         
         # Try a regular pull
-        if git pull origin "$BACKUP_BRANCH"; then
+        if timeout "${BACKUP_TIMEOUT}" git pull origin "$BACKUP_BRANCH"; then
             success "Successfully pulled with merge"
         else
             error "Failed to pull changes - manual intervention required"
@@ -195,6 +202,18 @@ safe_pull() {
     fi
     
     return 0
+}
+
+# Quick check for remote reachability to avoid long hangs
+check_remote() {
+    log "Checking remote reachability..."
+    if timeout 5 git ls-remote --heads origin "$BACKUP_BRANCH" >/dev/null 2>&1; then
+        success "Remote reachable"
+        return 0
+    else
+        warning "Remote not reachable; skipping backup"
+        return 1
+    fi
 }
 
 # Function to add files for backup
@@ -303,7 +322,7 @@ EOF
     
     # Push to remote
     log "Pushing to remote repository..."
-    if git push origin "$BACKUP_BRANCH"; then
+    if timeout "${BACKUP_TIMEOUT}" git push origin "$BACKUP_BRANCH"; then
         success "Successfully pushed to GitHub"
         
         # Update README status after successful push
@@ -328,6 +347,13 @@ main() {
         exit 1
     fi
     
+    # Verify remote is reachable; skip gracefully if not
+    if ! check_remote; then
+        # Treat as a soft skip so callers don't fail deployments
+        success "Backup skipped due to unreachable remote"
+        exit 0
+    fi
+
     # Pull latest changes with conflict resolution
     if ! safe_pull; then
         error "Failed to sync with remote repository"

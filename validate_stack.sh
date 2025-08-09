@@ -158,9 +158,25 @@ elif [[ ${BACKUPS_ONLY} == true ]]; then
 fi
 
 # Get active Docker Compose command
+get_compose_bin() {
+    if docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        echo "docker-compose"
+    else
+        echo ""  # caller handles error
+    fi
+}
+
 get_compose_command() {
     # Determine which compose files and profiles are active
-    local cmd="docker-compose -f ${BASE_COMPOSE_FILE}"
+    local compose_bin
+    compose_bin=$(get_compose_bin)
+    if [[ -z "$compose_bin" ]]; then
+        error "Docker Compose not found (plugin or v1)"
+        exit 1
+    fi
+    local cmd="${compose_bin} -f ${BASE_COMPOSE_FILE}"
     
     # Check if any profiles are running
     local running_services

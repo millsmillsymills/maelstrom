@@ -208,7 +208,7 @@ services:
     ports:
       - "127.0.0.1:9273:9273"
     volumes:
-      - /home/mills/collections/telegraf:/etc/telegraf:ro
+      - /home/mills/collections/telegraf-config/telegraf.conf:/etc/telegraf/telegraf.conf:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys:/host/sys:ro
       - /proc:/host/proc:ro
@@ -366,7 +366,7 @@ services:
     ports:
       - "127.0.0.1:9115:9115"
     volumes:
-      - /home/mills/networking/collections/blackbox:/etc/blackbox_exporter:ro
+      - /home/mills/networking/collections/blackbox-config/blackbox.yml:/etc/blackbox_exporter/blackbox.yml:ro
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -416,7 +416,7 @@ services:
   loki:
     image: grafana/loki:latest
     container_name: loki
-    profiles: [logging]
+    profiles: [logging, security-stack]
     ports:
       - "127.0.0.1:3100:3100"
     volumes:
@@ -426,7 +426,7 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    user: "1000:1000"
+    user: "root"
     read_only: false
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=100m
@@ -447,7 +447,7 @@ services:
     container_name: promtail
     profiles: [logging]
     volumes:
-      - /home/mills/collections/promtail:/etc/promtail
+      - /home/mills/collections/promtail-config/config.yml:/etc/promtail/config.yml:ro
       - /var/log:/var/log:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
     command: -config.file=/etc/promtail/config.yml
@@ -658,7 +658,7 @@ services:
   slack-notifier:
     image: python:3.11-slim
     container_name: slack-notifier
-    profiles: [notifications]
+    profiles: [notifications, security-stack]
     ports:
       - "5001:5001"
     volumes:
