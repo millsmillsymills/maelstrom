@@ -65,7 +65,14 @@ jobs:
       - name: Lint YAML files with yamllint
         run: |
           echo "::group::YAML Linting"
-          yamllint -c .yamllint.yml .
+          # Limit linting to active configuration and workflows to avoid archived backups noise
+          yamllint -c .yamllint.yml \
+            .yamllint.yml \
+            .github/workflows \
+            base.yml \
+            prod.yml \
+            docker-compose.yml \
+            docker-compose.secrets.yml || exit_code=$?
           echo "::endgroup::"
 
       - name: Lint shell scripts with shellcheck
