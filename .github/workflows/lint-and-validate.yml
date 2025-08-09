@@ -17,15 +17,15 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-        python-version: '3.11'
+          python-version: '3.11'
 
       - name: Cache pip dependencies
         uses: actions/cache@v3
         with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-        ${{ runner.os }}-pip-
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install Python dependencies
         run: |
@@ -46,11 +46,12 @@ jobs:
 
       - name: Install Trivy
         run: |
-          sudo apt-get install wget apt-transport-https gnupg lsb-release
+          sudo apt-get update -y
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
           wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
           echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install trivy
+          sudo apt-get update -y
+          sudo apt-get install -y trivy
 
       - name: Lint Dockerfiles with Hadolint
         run: |
@@ -82,13 +83,13 @@ jobs:
           # Validate base configuration
           if [ -f "base.yml" ]; then
           echo "Validating base.yml..."
-          docker-compose -f base.yml config --quiet
+          docker compose -f base.yml config --quiet
           fi
 
           # Validate production overlay
           if [ -f "prod.yml" ] && [ -f "base.yml" ]; then
             echo "Validating base.yml + prod.yml..."
-            docker-compose -f base.yml -f prod.yml config --quiet
+            docker compose -f base.yml -f prod.yml config --quiet
           fi
           echo "::endgroup::"
 
@@ -105,7 +106,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
-        sarif_file: 'trivy-results.sarif'
+          sarif_file: 'trivy-results.sarif'
 
       - name: Run pytest on test stubs
         run: |
