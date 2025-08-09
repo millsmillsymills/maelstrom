@@ -44,11 +44,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH key
+      - name: Check required secrets
+        id: check_secrets
         env:
-        SSH_PRIVATE_KEY: ${{ secrets.MAELSTROM_SSH_KEY }}
-        SSH_HOST: ${{ secrets.MAELSTROM_HOST }}
-        SSH_USER: ${{ secrets.MAELSTROM_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.MAELSTROM_SSH_KEY }}
+          SSH_HOST: ${{ secrets.MAELSTROM_HOST }}
+          SSH_USER: ${{ secrets.MAELSTROM_USER }}
+        run: |
+          missing=0
+          for v in SSH_PRIVATE_KEY SSH_HOST SSH_USER; do
+            if [ -z "${!v}" ]; then echo "❌ Missing $v"; missing=1; fi
+          done
+          if [ $missing -eq 0 ]; then echo "has_secrets=true" >> $GITHUB_OUTPUT; else echo "has_secrets=false" >> $GITHUB_OUTPUT; fi
+
+      - name: Setup SSH key
+        if: steps.check_secrets.outputs.has_secrets == 'true'
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.MAELSTROM_SSH_KEY }}
+          SSH_HOST: ${{ secrets.MAELSTROM_HOST }}
+          SSH_USER: ${{ secrets.MAELSTROM_USER }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
@@ -56,10 +70,11 @@ jobs:
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
       - name: Deploy to Maelstrom via SSH
+        if: steps.check_secrets.outputs.has_secrets == 'true'
         env:
-        SSH_HOST: ${{ secrets.MAELSTROM_HOST }}
-        SSH_USER: ${{ secrets.MAELSTROM_USER }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SSH_HOST: ${{ secrets.MAELSTROM_HOST }}
+          SSH_USER: ${{ secrets.MAELSTROM_USER }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ssh -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" << 'ENDSSH'
           set -euo pipefail
@@ -109,72 +124,72 @@ jobs:
         if: success()
         uses: actions/github-script@v6
         with:
-        script: |
-        const { data: commit } = await github.rest.repos.getCommit({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        ref: context.sha
-        });
+          script: |
+            const { data: commit } = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha
+            });
 
-        const deploymentComment = `
-          ## 🚀 Deployment Successful
+            const deploymentComment = `
+              ## 🚀 Deployment Successful
 
-        **Commit:** ${context.sha.substring(0, 7)} - ${commit.commit.message.split('\n')[0]}
-        **Deployed at:** ${new Date().toUTCString()}
-        **Workflow:** [${context.workflow}](${context.payload.repository.html_url}/actions/runs/${context.runId})
+              **Commit:** ${context.sha.substring(0, 7)} - ${commit.commit.message.split('\n')[0]}
+              **Deployed at:** ${new Date().toUTCString()}
+              **Workflow:** [${context.workflow}](${context.payload.repository.html_url}/actions/runs/${context.runId})
 
-          ### ✅ Deployment Steps Completed:
-      - Pull latest code from GitHub
-      - Run deployment script with compatibility mode
-      - Validate stack health
-      - Update service status
+              ### ✅ Deployment Steps Completed:
+              - Pull latest code from GitHub
+              - Run deployment script with compatibility mode
+              - Validate stack health
+              - Update service status
 
-        The Maelstrom monitoring stack is now running the latest version.
-        `;
+              The Maelstrom monitoring stack is now running the latest version.
+            `;
 
-        github.rest.repos.createCommitComment({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        commit_sha: context.sha,
-        body: deploymentComment
-        });
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: deploymentComment
+            });
 
       - name: Create GitHub Issue on deployment failure
         if: failure()
         uses: actions/github-script@v6
         with:
-        script: |
-        const issueTitle = `🚨 Deployment Failed - ${new Date().toISOString().split('T')[0]}`;
-        const issueBody = `
-          ## Deployment Failure Report
+          script: |
+            const issueTitle = `🚨 Deployment Failed - ${new Date().toISOString().split('T')[0]}`;
+            const issueBody = `
+              ## Deployment Failure Report
 
-        **Commit:** ${context.sha}
-        **Branch:** ${context.ref}
-        **Workflow Run:** [${context.runId}](${context.payload.repository.html_url}/actions/runs/${context.runId})
-        **Failed at:** ${new Date().toUTCString()}
+              **Commit:** ${context.sha}
+              **Branch:** ${context.ref}
+              **Workflow Run:** [${context.runId}](${context.payload.repository.html_url}/actions/runs/${context.runId})
+              **Failed at:** ${new Date().toUTCString()}
 
-          ### 🔍 Investigation Steps:
-        1. Check the [workflow logs](${context.payload.repository.html_url}/actions/runs/${context.runId}) for detailed error messages
-        2. SSH to Maelstrom server and check service status: \`docker ps\`
-        3. Review deployment logs: \`./validate_stack.sh\`
-        4. Check for resource constraints: \`docker stats\`
+              ### 🔍 Investigation Steps:
+              1. Check the [workflow logs](${context.payload.repository.html_url}/actions/runs/${context.runId}) for detailed error messages
+              2. SSH to Maelstrom server and check service status: \`docker ps\`
+              3. Review deployment logs: \`./validate_stack.sh\`
+              4. Check for resource constraints: \`docker stats\`
 
-          ### 🛠️ Recovery Actions:
-      - [ ] Investigate root cause from logs
-      - [ ] Fix configuration issues
-      - [ ] Re-run deployment with \`deploy=true\` commit message
-      - [ ] Verify all services are healthy
+              ### 🛠️ Recovery Actions:
+              - [ ] Investigate root cause from logs
+              - [ ] Fix configuration issues
+              - [ ] Re-run deployment with \`deploy=true\` commit message
+              - [ ] Verify all services are healthy
 
-        **Auto-generated by GitHub Actions**
-        `;
+              **Auto-generated by GitHub Actions**
+            `;
 
-        github.rest.issues.create({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        title: issueTitle,
-        body: issueBody,
-        labels: ['deployment-failure', 'urgent']
-        });
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ['deployment-failure', 'urgent']
+            });
 
       - name: Update deployment status
         if: always()

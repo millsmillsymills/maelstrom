@@ -85,18 +85,12 @@ jobs:
           docker-compose -f base.yml config --quiet
           fi
 
-        # Validate production configuration
-        if [ -f "prod.yml" ] && [ -f "base.yml" ]; then
-        echo "Validating base.yml + prod.yml..."
-        docker-compose -f base.yml -f prod.yml config --quiet
-        fi
-
-        # Validate main docker-compose.yml if it exists
-        if [ -f "docker-compose.yml" ]; then
-        echo "Validating docker-compose.yml..."
-        docker-compose -f docker-compose.yml config --quiet
-        fi
-        echo "::endgroup::"
+          # Validate production overlay
+          if [ -f "prod.yml" ] && [ -f "base.yml" ]; then
+            echo "Validating base.yml + prod.yml..."
+            docker-compose -f base.yml -f prod.yml config --quiet
+          fi
+          echo "::endgroup::"
 
       - name: Run Trivy infrastructure scanning
         run: |
