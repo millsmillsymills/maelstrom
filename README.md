@@ -11,14 +11,10 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 <!-- STATUS-BEGIN -->
 | Key Metric       | Value             |
 |------------------|------------------|
-| Stack Health     | 🟡 Degraded |
+| Stack Health     | 🟢 Healthy |
 | Critical Alerts  | ✅ None |
-| Failing Services | 2 |
-| Last Check       | 2025-08-09 02:05 UTC |
-
-**Failing Services:**
-- network-discovery (restarting)
-- plex-data-collector (restarting)
+| Failing Services | 0 |
+| Last Check       | 2025-08-09 03:03 UTC |
 <!-- STATUS-END -->
 
 ## Backups Scope

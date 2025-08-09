@@ -14,53 +14,156 @@ from typing import Dict, List, Tuple
 import requests
 
 
-def get_docker_service_status() -> Tuple[int, int, List[str]]:
-    """Get Docker service status information"""
+BASE_COMPOSE_PATH = "/home/mills/base.yml"
+
+
+def _get_base_project_container_ids() -> List[str]:
+    """Return container IDs for services defined by base.yml using docker compose.
+
+    Falls back to empty list if compose is unavailable or returns nothing.
+    """
     try:
-        # Get running containers
         result = subprocess.run(
-            ["docker", "ps", "--format", "{{.Names}}:{{.Status}}:{{.State}}"],
+            [
+                "docker",
+                "compose",
+                "-f",
+                BASE_COMPOSE_PATH,
+                "ps",
+                "-q",
+            ],
             capture_output=True,
             text=True,
-            check=True
+            check=False,
         )
-        
+        ids = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        return ids
+    except Exception:
+        return []
+
+
+def get_docker_service_status() -> Tuple[int, int, List[str]]:
+    """Get Docker service status information, focusing on core (base.yml) services.
+
+    Preference order:
+      1) Use `docker compose -f base.yml ps -q` container IDs
+      2) Fallback to all containers from `docker ps` (legacy)
+    """
+    try:
+        container_ids = _get_base_project_container_ids()
+
+        # Build a map of services in base.yml that are gated behind profiles
+        service_profiles: Dict[str, bool] = {}
+        try:
+            with open(BASE_COMPOSE_PATH, "r") as f:
+                lines = f.readlines()
+            in_services = False
+            current_service = None
+            for raw in lines:
+                line = raw.rstrip("\n")
+                if line.strip() == "services:":
+                    in_services = True
+                    current_service = None
+                    continue
+                if not in_services:
+                    continue
+                # Detect new service block (two-space indent, name:)
+                if line.startswith("  ") and not line.startswith("    ") and line.strip().endswith(":"):
+                    name = line.strip()[:-1]
+                    current_service = name
+                    # Initialize as not having profiles
+                    service_profiles[current_service] = False
+                    continue
+                # Inside a service block, detect a profiles key
+                if current_service and line.strip().startswith("profiles:"):
+                    service_profiles[current_service] = True
+                # Heuristic: if dedented back to top-level, leave services section
+                if line and not line.startswith("  ") and not line.startswith(" "):
+                    in_services = False
+                    current_service = None
+        except Exception:
+            # On any parsing issue, default to empty map (count all)
+            service_profiles = {}
+
+        entries: List[Tuple[str, str, str]] = []  # (name, status, state)
+
+        if container_ids:
+            for cid in container_ids:
+                insp = subprocess.run(
+                    [
+                        "docker",
+                        "inspect",
+                        cid,
+                        "--format",
+                        "{{.Name}}:{{.State.Status}}:{{ index .Config.Labels \"com.docker.compose.service\" }}",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                line = insp.stdout.strip().lstrip("/")
+                if not line:
+                    continue
+                parts = line.split(":")
+                name = parts[0]
+                state = parts[1] if len(parts) > 1 else "unknown"
+                svc = parts[2] if len(parts) > 2 else ""
+                # Skip containers for services that are profile-gated in base.yml
+                if svc and service_profiles.get(svc, False):
+                    continue
+                # Normalize to legacy tuple format
+                entries.append((name, state, state))
+        else:
+            # Fallback: all containers (older behavior)
+            result = subprocess.run(
+                ["docker", "ps", "--format", "{{.Names}}:{{.Status}}:{{.State}}"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            for line in result.stdout.strip().split("\n"):
+                if not line:
+                    continue
+                parts = line.split(":")
+                # name, status (human), state (machine)
+                if len(parts) >= 3:
+                    entries.append((parts[0], parts[1], parts[2]))
+
         healthy_count = 0
         unhealthy_services = []
         total_services = 0
-        
-        for line in result.stdout.strip().split('\n'):
-            if not line:
-                continue
-                
-            parts = line.split(':')
-            if len(parts) >= 3:
-                name = parts[0]
-                status = parts[1]
-                state = parts[2]
-                
-                total_services += 1
-                
-                # Check if container is running and healthy
-                if state == "running":
-                    # Check health status for containers with health checks
-                    health_result = subprocess.run(
-                        ["docker", "inspect", name, "--format", "{{.State.Health.Status}}"],
-                        capture_output=True,
-                        text=True
-                    )
-                    
-                    health_status = health_result.stdout.strip()
-                    if health_status == "healthy" or health_status == "":
-                        healthy_count += 1
-                    elif health_status == "unhealthy":
-                        unhealthy_services.append(f"{name} (unhealthy)")
-                    elif health_status == "starting":
-                        # Still starting, don't count as unhealthy yet
-                        healthy_count += 1
+
+        for name, status, state in entries:
+            total_services += 1
+
+            # Only treat running containers as candidates; else failing
+            if state == "running":
+                # Check health status for containers with health checks
+                health_result = subprocess.run(
+                    [
+                        "docker",
+                        "inspect",
+                        name,
+                        "--format",
+                        "{{if .State.Health}}{{.State.Health.Status}}{{end}}",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                health_status = (health_result.stdout or "").strip()
+                if health_status in ("healthy", ""):
+                    healthy_count += 1
+                elif health_status == "starting":
+                    healthy_count += 1  # grace period
+                elif health_status == "unhealthy":
+                    unhealthy_services.append(f"{name} (unhealthy)")
                 else:
-                    unhealthy_services.append(f"{name} ({state})")
-        
+                    # Unknown health — treat as healthy if running
+                    healthy_count += 1
+            else:
+                unhealthy_services.append(f"{name} ({state})")
+
         failing_count = total_services - healthy_count
         return healthy_count, failing_count, unhealthy_services
         
