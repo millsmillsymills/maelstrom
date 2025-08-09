@@ -1,7 +1,9 @@
 version: '3.8'
 services:
   docker-api:
-    build: ..
+    build:
+      context: ..
+      dockerfile: docker_api/Dockerfile
     image: maelstrom/docker-api:latest
     container_name: docker-api
     environment:
