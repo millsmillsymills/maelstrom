@@ -1452,6 +1452,8 @@ services:
   swag:
     image: lscr.io/linuxserver/swag:latest
     container_name: swag
+    profiles:
+      - reverse-proxy
     cap_add:
       - NET_ADMIN
     environment:
@@ -1460,10 +1462,12 @@ services:
       - TZ=${TZ}
       - URL=${SWAG_DOMAIN:-maelstrom.local}
       - SUBDOMAINS=wildcard
-      - VALIDATION=http
-      - EMAIL=${SWAG_EMAIL:-admin@maelstrom.local}
+      - VALIDATION=${SWAG_VALIDATION:-internal}
+      - DNSPLUGIN=${SWAG_DNSPLUGIN:-}
+      - EMAIL=${SWAG_EMAIL:-}
       - ONLY_SUBDOMAINS=${SWAG_ONLY_SUBDOMAINS:-false}
       - STAGING=${SWAG_STAGING:-false}
+      - CERTPROVIDER=${SWAG_CERT_PROVIDER:-letsencrypt}
       - PROPAGATION=60
     volumes:
       - /home/mills/collections/swag:/config
