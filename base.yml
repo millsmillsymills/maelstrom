@@ -200,6 +200,12 @@ services:
     networks:
       monitoring:
         ipv4_address: 172.30.0.42
+    healthcheck:
+      test: ["CMD", "/usr/bin/unpoller", "--version"]
+      interval: 1m
+      timeout: 10s
+      retries: 2
+      start_period: 30s
 
   telegraf:
     image: telegraf:1.27
@@ -238,6 +244,12 @@ services:
     networks:
       monitoring:
         ipv4_address: 172.30.0.41
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep -q telegraf"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   plex-data-collector:
     build: /home/mills/collections/Plex-Data-Collector-For-InfluxDB
@@ -249,7 +261,7 @@ services:
       - PLEX_CHIMERA_IP=${PLEX_CHIMERA_IP}
       - PLEX_CHIMERA_AUTH_TOKEN=${PLEX_CHIMERA_AUTH_TOKEN}
     volumes:
-      - /home/mills/collections/Plex-Data-Collector-For-InfluxDB:/config
+      - /home/mills/collections/Plex-Data-Collector-For-InfluxDB:/src:ro
     restart: unless-stopped
     networks:
       monitoring:
@@ -316,6 +328,12 @@ services:
     networks:
       monitoring:
         ipv4_address: 172.30.0.13
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9100/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   mysql-exporter:
     image: prom/mysqld-exporter:latest
@@ -385,6 +403,12 @@ services:
     networks:
       monitoring:
         ipv4_address: 172.30.0.15
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9115/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   snmp-exporter:
     image: prom/snmp-exporter:latest
@@ -412,6 +436,12 @@ services:
     networks:
       monitoring:
         ipv4_address: 172.30.0.20
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9116/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   loki:
     image: grafana/loki:latest
@@ -441,6 +471,12 @@ services:
     networks:
       monitoring:
         ipv4_address: 172.30.0.18
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   promtail:
     image: grafana/promtail:latest
@@ -471,6 +507,12 @@ services:
     networks:
       monitoring:
         ipv4_address: 172.30.0.19
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep -q promtail"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   pihole:
     image: pihole/pihole:latest
@@ -575,6 +617,12 @@ services:
     networks:
       monitoring:
         ipv4_address: 172.30.0.7
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep -q zabbix_server"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   zabbix-web:
     image: zabbix/zabbix-web-nginx-mysql:latest
@@ -690,14 +738,21 @@ services:
     profiles: [networking]
     volumes:
       - /home/mills/networking/collections/network-discovery:/app
+      - /home/mills/collections/prometheus/targets:/prometheus-targets
+      - /home/mills/secrets:/secrets:ro
     working_dir: /app
-    command: bash -c "apt-get update && apt-get install -y iputils-ping && pip install -r requirements.txt && python network_scanner.py"
+    environment:
+      - PYTHONPATH=/app
+    command: bash -c "apt-get update && apt-get install -y iproute2 iputils-ping arp-scan nmap && pip install -r requirements.txt && python -u network_scanner.py"
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     read_only: false
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=100m
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
     logging: *default-logging
     deploy:
       resources:
@@ -712,6 +767,34 @@ services:
     networks:
       monitoring:
         ipv4_address: 172.30.0.22
+
+  network-discovery-host:
+    image: python:3.11-slim
+    container_name: network-discovery-host
+    profiles: [networking]
+    network_mode: host
+    volumes:
+      - /home/mills/networking/collections/network-discovery:/app
+      - /home/mills/collections/prometheus/targets:/prometheus-targets
+      - /home/mills/secrets:/secrets:ro
+    working_dir: /app
+    environment:
+      - PYTHONPATH=/app
+      - DISCOVERY_INTERVAL=300
+      - DISCOVERY_MAX_WORKERS=256
+      - DISCOVERY_PING_TIMEOUT=0.5
+      - DISCOVERY_TCP_TIMEOUT=0.5
+    command: bash -c "apt-get update && apt-get install -y iproute2 iputils-ping arp-scan nmap && pip install -r requirements.txt && python -u network_scanner.py"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100m
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    logging: *default-logging
 
   swag:
     image: lscr.io/linuxserver/swag:latest
@@ -748,6 +831,12 @@ services:
     networks:
       monitoring:
         ipv4_address: 172.30.0.39
+    healthcheck:
+      test: ["CMD", "curl", "-ksSf", "https://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
 
 volumes:
   alertmanager_data:

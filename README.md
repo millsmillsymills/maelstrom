@@ -14,7 +14,7 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 | Stack Health     | 🟢 Healthy |
 | Critical Alerts  | ✅ None |
 | Failing Services | 0 |
-| Last Check       | 2025-08-09 03:03 UTC |
+| Last Check       | 2025-08-09 19:46 UTC |
 <!-- STATUS-END -->
 
 ## Backups Scope
@@ -95,6 +95,14 @@ cd maelstrom
 ```
 
 ## 📊 Service Access Points
+
+## 📦 Project Inventory (at a glance)
+- Config: `base.yml`, `prod.yml`, `docker-compose.yml` (+ `docker-compose.secrets.yml`).
+- Code & tools: `maelstrom-api/`, `scripts/`, `docker_api/`, `Makefile`.
+- Config collections: `collections/` (service configs; data dirs use `*-data`).
+- Tests: `tests/unit`, `tests/integration` with pytest markers.
+- Docs: `docs/` (guides, architecture). Contributor info: `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`.
+- Backups & logs: `backups/`, `logs/`, soft-deletes in `trash/`.
 
 ### Core Dashboards
 - **Grafana**: http://localhost:3000 (admin/configured_password)
@@ -293,15 +301,12 @@ Deploy only what you need with service profiles:
 - Network interface available for MacVLAN (Pi-hole direct access)
 
 ## 🤝 Contributing
+Please review [AGENTS.md](AGENTS.md) and the detailed [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Please review the contributor guide in [AGENTS.md](AGENTS.md) for repository structure, workflows, and required checks.
-
-This is a single-admin production system with no formal contribution process. However, improvements and optimizations are welcome:
-
-1. Fork the repository
-2. Create feature branch
-3. Test changes with `./validate_stack.sh`
-4. Submit pull request with detailed testing notes
+Development workflow:
+- Run `./deploy_stack.sh --dry-run --all-profiles` and `./validate_stack.sh --quick` before PRs.
+- Tests: `pytest -q` or focused with markers (`-m unit` / `-m integration`).
+- Lint/format: `pre-commit run -a`.
 
 ## 📜 License
 

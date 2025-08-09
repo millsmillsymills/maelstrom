@@ -32,7 +32,8 @@ security = HTTPBasic()
 # Configuration
 RESURGENT_IP = os.getenv("RESURGENT_IP", "192.168.1.115")
 API_USERNAME = os.getenv("API_USERNAME", "maelstrom_admin")
-API_PASSWORD = os.getenv("API_PASSWORD", "secure_api_pass_2024")
+# Do not default to a hardcoded password; require environment to set it
+API_PASSWORD = os.getenv("API_PASSWORD")
 
 # Cache for diagnostic data
 diagnostic_cache: Dict[str, Any] = {}
@@ -42,6 +43,13 @@ def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
     """Verify API authentication"""
     correct_username = API_USERNAME
     correct_password = API_PASSWORD
+    if correct_password is None:
+        # Misconfiguration: no API password configured
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="API password not configured; set API_PASSWORD env var",
+            headers={"Retry-After": "60"},
+        )
     
     if credentials.username != correct_username or credentials.password != correct_password:
         raise HTTPException(

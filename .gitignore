@@ -32,6 +32,8 @@ collections/zabbix-mysql/
 collections/mysql/
 collections/elasticsearch/
 collections/wazuh_*/
+collections/victoriametrics-data/
+collections/minio-data/
 
 # Logs
 logs/

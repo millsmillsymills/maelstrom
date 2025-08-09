@@ -17,169 +17,184 @@ jobs:
     outputs:
       should_deploy: ${{ steps.check.outputs.should_deploy }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Check if deployment is triggered
-      id: check
-      run: |
-        if [[ "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if deployment is triggered
+        id: check
+        run: |
+          if [[ "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
           echo "should_deploy=true" >> $GITHUB_OUTPUT
           echo "✅ Deployment forced via manual trigger"
-        elif git log --format=%B -n 1 HEAD | grep -q "deploy=true"; then
+          elif git log --format=%B -n 1 HEAD | grep -q "deploy=true"; then
           echo "should_deploy=true" >> $GITHUB_OUTPUT
           echo "✅ Deployment triggered by commit message"
-        else
+          else
           echo "should_deploy=false" >> $GITHUB_OUTPUT
           echo "ℹ️ No deployment trigger found"
-        fi
+          fi
 
   deploy:
     needs: check-deploy-trigger
     if: needs.check-deploy-trigger.outputs.should_deploy == 'true'
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup SSH key
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.MAELSTROM_SSH_KEY }}
-        SSH_HOST: ${{ secrets.MAELSTROM_HOST }}
-        SSH_USER: ${{ secrets.MAELSTROM_USER }}
-      run: |
-        mkdir -p ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
-        
-    - name: Deploy to Maelstrom via SSH
-      env:
-        SSH_HOST: ${{ secrets.MAELSTROM_HOST }}
-        SSH_USER: ${{ secrets.MAELSTROM_USER }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        ssh -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" << 'ENDSSH'
-        set -euo pipefail
-        
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check required secrets
+        id: check_secrets
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.MAELSTROM_SSH_KEY }}
+          SSH_HOST: ${{ secrets.MAELSTROM_HOST }}
+          SSH_USER: ${{ secrets.MAELSTROM_USER }}
+        run: |
+          missing=0
+          for v in SSH_PRIVATE_KEY SSH_HOST SSH_USER; do
+            if [ -z "${!v}" ]; then echo "❌ Missing $v"; missing=1; fi
+          done
+          if [ $missing -eq 0 ]; then echo "has_secrets=true" >> $GITHUB_OUTPUT; else echo "has_secrets=false" >> $GITHUB_OUTPUT; fi
+
+      - name: Setup SSH key
+        if: steps.check_secrets.outputs.has_secrets == 'true'
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.MAELSTROM_SSH_KEY }}
+          SSH_HOST: ${{ secrets.MAELSTROM_HOST }}
+          SSH_USER: ${{ secrets.MAELSTROM_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy to Maelstrom via SSH
+        if: steps.check_secrets.outputs.has_secrets == 'true'
+        env:
+          SSH_HOST: ${{ secrets.MAELSTROM_HOST }}
+          SSH_USER: ${{ secrets.MAELSTROM_USER }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ssh -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" << 'ENDSSH'
+          set -euo pipefail
+
         echo "🚀 Starting Maelstrom deployment..."
-        
+
         # Navigate to project directory
         cd /home/mills || { echo "❌ Project directory not found"; exit 1; }
-        
+
         # Pull latest changes
         echo "📥 Pulling latest changes..."
         git fetch origin
         git reset --hard origin/main
-        
+
         # Check if deployment script exists
         if [ ! -f "deploy_stack.sh" ]; then
-          echo "❌ Deployment script not found"
-          exit 1
+        echo "❌ Deployment script not found"
+        exit 1
         fi
-        
+
         # Run deployment
         echo "🔄 Running deployment script..."
         if ./deploy_stack.sh --compatibility; then
-          echo "✅ Deployment script completed successfully"
+        echo "✅ Deployment script completed successfully"
         else
-          echo "❌ Deployment script failed"
-          exit 1
+        echo "❌ Deployment script failed"
+        exit 1
         fi
-        
+
         # Run validation
         echo "🔍 Running stack validation..."
         if [ -f "validate_stack.sh" ]; then
-          if ./validate_stack.sh --quick; then
-            echo "✅ Stack validation passed"
-          else
-            echo "❌ Stack validation failed"
-            exit 1
-          fi
+        if ./validate_stack.sh --quick; then
+        echo "✅ Stack validation passed"
         else
-          echo "⚠️ Validation script not found, skipping validation"
+        echo "❌ Stack validation failed"
+        exit 1
         fi
-        
+        else
+        echo "⚠️ Validation script not found, skipping validation"
+        fi
+
         echo "🎉 Deployment completed successfully!"
         ENDSSH
-        
-    - name: Create deployment status comment
-      if: success()
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const { data: commit } = await github.rest.repos.getCommit({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            ref: context.sha
-          });
-          
-          const deploymentComment = `
-          ## 🚀 Deployment Successful
-          
-          **Commit:** ${context.sha.substring(0, 7)} - ${commit.commit.message.split('\n')[0]}
-          **Deployed at:** ${new Date().toUTCString()}
-          **Workflow:** [${context.workflow}](${context.payload.repository.html_url}/actions/runs/${context.runId})
-          
-          ### ✅ Deployment Steps Completed:
-          - Pull latest code from GitHub
-          - Run deployment script with compatibility mode  
-          - Validate stack health
-          - Update service status
-          
-          The Maelstrom monitoring stack is now running the latest version.
-          `;
-          
-          github.rest.repos.createCommitComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            commit_sha: context.sha,
-            body: deploymentComment
-          });
-          
-    - name: Create GitHub Issue on deployment failure
-      if: failure()
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const issueTitle = `🚨 Deployment Failed - ${new Date().toISOString().split('T')[0]}`;
-          const issueBody = `
-          ## Deployment Failure Report
-          
-          **Commit:** ${context.sha} 
-          **Branch:** ${context.ref}
-          **Workflow Run:** [${context.runId}](${context.payload.repository.html_url}/actions/runs/${context.runId})
-          **Failed at:** ${new Date().toUTCString()}
-          
-          ### 🔍 Investigation Steps:
-          1. Check the [workflow logs](${context.payload.repository.html_url}/actions/runs/${context.runId}) for detailed error messages
-          2. SSH to Maelstrom server and check service status: \`docker ps\`
-          3. Review deployment logs: \`./validate_stack.sh\`
-          4. Check for resource constraints: \`docker stats\`
-          
-          ### 🛠️ Recovery Actions:
-          - [ ] Investigate root cause from logs
-          - [ ] Fix configuration issues
-          - [ ] Re-run deployment with \`deploy=true\` commit message
-          - [ ] Verify all services are healthy
-          
-          **Auto-generated by GitHub Actions**
-          `;
-          
-          github.rest.issues.create({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            title: issueTitle,
-            body: issueBody,
-            labels: ['deployment-failure', 'urgent']
-          });
-          
-    - name: Update deployment status
-      if: always()
-      run: |
-        if [[ "${{ job.status }}" == "success" ]]; then
+
+      - name: Create deployment status comment
+        if: success()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: commit } = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha
+            });
+
+            const deploymentComment = `
+              ## 🚀 Deployment Successful
+
+              **Commit:** ${context.sha.substring(0, 7)} - ${commit.commit.message.split('\n')[0]}
+              **Deployed at:** ${new Date().toUTCString()}
+              **Workflow:** [${context.workflow}](${context.payload.repository.html_url}/actions/runs/${context.runId})
+
+              ### ✅ Deployment Steps Completed:
+              - Pull latest code from GitHub
+              - Run deployment script with compatibility mode
+              - Validate stack health
+              - Update service status
+
+              The Maelstrom monitoring stack is now running the latest version.
+            `;
+
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: deploymentComment
+            });
+
+      - name: Create GitHub Issue on deployment failure
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issueTitle = `🚨 Deployment Failed - ${new Date().toISOString().split('T')[0]}`;
+            const issueBody = `
+              ## Deployment Failure Report
+
+              **Commit:** ${context.sha}
+              **Branch:** ${context.ref}
+              **Workflow Run:** [${context.runId}](${context.payload.repository.html_url}/actions/runs/${context.runId})
+              **Failed at:** ${new Date().toUTCString()}
+
+              ### 🔍 Investigation Steps:
+              1. Check the [workflow logs](${context.payload.repository.html_url}/actions/runs/${context.runId}) for detailed error messages
+              2. SSH to Maelstrom server and check service status: \`docker ps\`
+              3. Review deployment logs: \`./validate_stack.sh\`
+              4. Check for resource constraints: \`docker stats\`
+
+              ### 🛠️ Recovery Actions:
+              - [ ] Investigate root cause from logs
+              - [ ] Fix configuration issues
+              - [ ] Re-run deployment with \`deploy=true\` commit message
+              - [ ] Verify all services are healthy
+
+              **Auto-generated by GitHub Actions**
+            `;
+
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ['deployment-failure', 'urgent']
+            });
+
+      - name: Update deployment status
+        if: always()
+        run: |
+          if [[ "${{ job.status }}" == "success" ]]; then
           echo "## 🟢 Deployment Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The Maelstrom monitoring stack has been successfully deployed and validated." >> $GITHUB_STEP_SUMMARY
@@ -187,11 +202,11 @@ jobs:
           echo "**Services Status:** All services healthy ✅" >> $GITHUB_STEP_SUMMARY
           echo "**Validation:** Stack validation passed ✅" >> $GITHUB_STEP_SUMMARY
           echo "**Deployed at:** $(date -u)" >> $GITHUB_STEP_SUMMARY
-        else
+          else
           echo "## 🔴 Deployment Status: FAILED" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The deployment failed. Please check the logs and investigate." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Failed at:** $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "**Next steps:** Review logs and create recovery plan" >> $GITHUB_STEP_SUMMARY
-        fi
+          fi

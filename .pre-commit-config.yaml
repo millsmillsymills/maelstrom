@@ -119,34 +119,34 @@ repos:
         name: Trim trailing whitespace
         description: Remove trailing whitespace
         exclude: \.(md|yaml|yml)$
-      
+
       - id: end-of-file-fixer
         name: Fix end of files
         description: Ensure files end with a newline
         exclude: \.(png|jpg|jpeg|gif|ico)$
-      
+
       - id: check-added-large-files
         name: Check for large files
         description: Prevent large files from being committed
         args: ['--maxkb=1024']
-      
+
       - id: check-case-conflict
         name: Check for case conflicts
         description: Check for files that would conflict in case-insensitive filesystems
-      
+
       - id: check-json
         name: Check JSON
         description: Validate JSON files
         files: \.json$
-      
+
       - id: check-merge-conflict
         name: Check for merge conflicts
         description: Check for merge conflict markers
-      
+
       - id: check-symlinks
         name: Check symlinks
         description: Check for broken symlinks
-      
+
       - id: detect-private-key
         name: Detect private keys
         description: Detect private keys in files

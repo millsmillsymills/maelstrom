@@ -41,14 +41,14 @@ inhibit_rules:
       alertname: 'InfrastructureDown'
     target_match:
       alertname: 'ServiceDown'
-    equal: 
+    equal:
       - 'instance'
-  
+
   - source_match:
       alertname: 'NodeDown'
     target_match_re:
       alertname: '(ServiceUnavailable|HighLatency|DiskSpaceWarn)'
-    equal: 
+    equal:
       - 'instance'
   - source_match:
       severity: 'critical'
@@ -57,27 +57,27 @@ inhibit_rules:
     equal: ['alertname', 'dev', 'instance']
 
 receivers:
-- name: 'web.hook'
+  - name: 'web.hook'
   webhook_configs:
-  - url: 'http://slack-notifier:5001/webhook'
+    - url: 'http://slack-notifier:5001/webhook'
     send_resolved: true
 
-- name: 'critical-alerts'
+  - name: 'critical-alerts'
   webhook_configs:
-  - url: 'http://slack-notifier:5001/webhook'
+    - url: 'http://slack-notifier:5001/webhook'
     send_resolved: true
 
-- name: 'warning-alerts'
+  - name: 'warning-alerts'
   webhook_configs:
-  - url: 'http://slack-notifier:5001/webhook'
+    - url: 'http://slack-notifier:5001/webhook'
     send_resolved: true
 
-- name: 'resurgent-alerts'
+  - name: 'resurgent-alerts'
   webhook_configs:
-  - url: 'http://slack-notifier:5001/webhook'
+    - url: 'http://slack-notifier:5001/webhook'
     send_resolved: true
 
-- name: 'security-alerts'
+  - name: 'security-alerts'
   webhook_configs:
-  - url: 'http://slack-notifier:5001/webhook'
+    - url: 'http://slack-notifier:5001/webhook'
     send_resolved: true
