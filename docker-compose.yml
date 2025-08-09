@@ -352,7 +352,7 @@ services:
       - PLEX_CHIMERA_IP=${PLEX_CHIMERA_IP}
       - PLEX_CHIMERA_AUTH_TOKEN=${PLEX_CHIMERA_AUTH_TOKEN}
     volumes:
-      - ./collections/Plex-Data-Collector-For-InfluxDB/config.ini:/src/config.ini:ro
+      - /home/mills/collections/Plex-Data-Collector-For-InfluxDB:/src:ro
     restart: unless-stopped
     networks:
       monitoring:
@@ -663,6 +663,7 @@ services:
   network-discovery:
     image: python:3.11-slim
     container_name: network-discovery
+    profiles: [networking]
     volumes:
       - /home/mills/networking/collections/network-discovery:/app
       - /home/mills/collections/prometheus/targets:/prometheus-targets

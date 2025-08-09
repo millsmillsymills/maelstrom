@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source auth to populate EFFECTIVE_TOKEN and env from .env, but do not require token unless we need it here.
 # This will also configure git headers, which is acceptable and idempotent.
-"${SCRIPT_DIR}/github_auth.sh" >/dev/null || true
+source "${SCRIPT_DIR}/github_auth.sh" >/dev/null || true
 
 EFFECTIVE_TOKEN="${EFFECTIVE_TOKEN:-${GITHUB_TOKEN:-${OAUTH_ACCESS_TOKEN:-}}}"
 if [[ -z "${EFFECTIVE_TOKEN}" ]]; then
@@ -22,4 +22,3 @@ curl -sS \
   -H "Authorization: Bearer ${EFFECTIVE_TOKEN}" \
   -H "Accept: application/vnd.github+json" \
   "$@"
-

@@ -46,6 +46,7 @@ OPTIONS:
     --all-profiles     Deploy all heavy service profiles
     --compatibility    Use Docker Swarm compatibility mode
     --dry-run          Show what would be deployed without doing it
+    --no-pull         Skip pulling images before deploy
     --stop             Stop all services
     --down             Stop and remove all services
     --skip-backup      Skip post-deploy GitHub backup
@@ -74,6 +75,7 @@ BASE_ONLY=false
 ALL_PROFILES=false
 COMPATIBILITY=false
 DRY_RUN=false
+NO_PULL=false
 SKIP_BACKUP=false
 STOP_SERVICES=false
 DOWN_SERVICES=false
@@ -98,6 +100,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dry-run)
             DRY_RUN=true
+            shift
+            ;;
+        --no-pull)
+            NO_PULL=true
             shift
             ;;
         --stop)
@@ -280,10 +286,14 @@ deploy_services() {
         return 0
     fi
     
-    # Pull latest images
-    log "Pulling latest images..."
-    if ! ${compose_cmd} pull --quiet; then
-        warning "Some images could not be pulled, continuing with local images"
+    # Pull latest images unless skipped
+    if [[ ${NO_PULL} == true ]]; then
+        log "Skipping image pull (--no-pull set)"
+    else
+        log "Pulling latest images..."
+        if ! ${compose_cmd} pull --quiet; then
+            warning "Some images could not be pulled, continuing with local images"
+        fi
     fi
     
     # Deploy services

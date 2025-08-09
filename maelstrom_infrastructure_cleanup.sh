@@ -25,7 +25,7 @@ echo "Creating archive directories..."
 mkdir -p /home/mills/collections/prometheus/archive
 mkdir -p /home/mills/collections/telegraf/archive  
 mkdir -p /home/mills/docker/archive
-mkdir -p /home/mills/documentation/archive
+mkdir -p /home/mills/docs/archive
 
 # Archive unused Prometheus configurations
 echo "Archiving unused Prometheus configurations..."
@@ -91,7 +91,7 @@ echo "  Removed $logs_removed old log files"
 
 # Archive redundant documentation files
 echo "Archiving redundant documentation files..."
-mkdir -p /home/mills/documentation/archive
+mkdir -p /home/mills/docs/archive
 
 # Move historical reports to archive
 historical_docs=(
@@ -110,7 +110,7 @@ historical_docs=(
 
 for doc in "${historical_docs[@]}"; do
     if [[ -f "/home/mills/$doc" ]]; then
-        mv "/home/mills/$doc" "/home/mills/documentation/archive/"
+        mv "/home/mills/$doc" "/home/mills/docs/archive/"
         echo "  Archived: $doc"
     fi
 done
@@ -138,7 +138,7 @@ echo "=============================================="
 echo "Prometheus configs archived: $(ls /home/mills/collections/prometheus/archive/*.yml 2>/dev/null | wc -l)"
 echo "Telegraf configs archived: $(ls /home/mills/collections/telegraf/archive/*.conf 2>/dev/null | wc -l)"
 echo "Docker compose variants archived: $(ls /home/mills/docker/archive/*.yml 2>/dev/null | wc -l)"
-echo "Documentation files archived: $(ls /home/mills/documentation/archive/*.md 2>/dev/null | wc -l)"
+echo "Documentation files archived: $(ls /home/mills/docs/archive/*.md 2>/dev/null | wc -l)"
 echo "Log files removed: $logs_removed"
 echo ""
 echo "Current active configurations:"

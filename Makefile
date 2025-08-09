@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: gh.auth gh.probe gh.push
+.PHONY: gh.auth gh.probe gh.push gh.oauth
 
 gh.auth:
 	@./scripts/github_auth.sh --require-token
@@ -24,3 +24,5 @@ gh.push:
 	  GIT_TRACE=1 GIT_CURL_VERBOSE=1 git push origin "$$branch"; \
 	fi
 
+gh.oauth:
+	@./scripts/github_oauth_device.sh --scopes "repo"
