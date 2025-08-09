@@ -1,0 +1,41 @@
+name: PR Lint and Config Check
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  pr-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install yamllint
+        run: |
+          python -m pip install --upgrade pip
+          pip install yamllint
+
+      - name: Lint YAML
+        run: |
+          yamllint -c .yamllint.yml \
+            .yamllint.yml \
+            .github/workflows \
+            base.yml \
+            prod.yml \
+            docker-compose.yml \
+            docker-compose.secrets.yml
+
+      - name: Validate Compose configs
+        run: |
+          if ! docker compose version >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y docker-compose-plugin
+          fi
+          docker compose -f base.yml config --quiet
+          docker compose -f base.yml -f prod.yml config --quiet
