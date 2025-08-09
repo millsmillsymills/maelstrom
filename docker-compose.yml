@@ -1114,7 +1114,7 @@ services:
     depends_on:
       - slack-notifier
 
-  # ntopng Network Traffic Analysis  
+  # ntopng Network Traffic Analysis
   ntopng:
     image: ntop/ntopng:latest
     container_name: ntopng
@@ -1182,7 +1182,7 @@ services:
     container_name: unraid-monitor
     working_dir: /app
     command: bash -c "
-      pip install -r requirements.txt && 
+      pip install -r requirements.txt &&
       python monitor_launcher.py"
     volumes:
       - /home/mills/collections/unraid-monitoring:/app
@@ -1213,7 +1213,7 @@ services:
     container_name: threat-intelligence
     working_dir: /app
     command: bash -c "
-      pip install -r requirements.txt && 
+      pip install -r requirements.txt &&
       python geopolitical_threat_detector.py"
     volumes:
       - /home/mills/security/collections/threat-intelligence:/app
@@ -1245,9 +1245,9 @@ services:
     container_name: geopolitical-threat-detector
     working_dir: /app
     command: bash -c "
-      apt-get update && 
+      apt-get update &&
       apt-get install -y libmagic1 libmagic-dev yara-dev iptables iputils-ping net-tools tcpdump &&
-      pip install -r requirements.txt && 
+      pip install -r requirements.txt &&
       python enhanced_geopolitical_detector.py"
     volumes:
       - /home/mills/security/collections/threat-intelligence:/app
@@ -1279,9 +1279,9 @@ services:
     container_name: threat-response
     working_dir: /app
     command: bash -c "
-      apt-get update && 
+      apt-get update &&
       apt-get install -y libmagic1 libmagic-dev yara-dev iptables procps &&
-      pip install -r requirements.txt && 
+      pip install -r requirements.txt &&
       python automated_response_system.py"
     volumes:
       - /home/mills/security/collections/threat-intelligence:/app
@@ -1314,7 +1314,7 @@ services:
     container_name: data-optimizer
     working_dir: /app
     command: bash -c "
-      pip install -r requirements.txt && 
+      pip install -r requirements.txt &&
       python intelligent_data_manager.py"
     volumes:
       - /home/mills/collections/data-optimization:/app
@@ -1348,7 +1348,7 @@ services:
     working_dir: /app
     command: bash -c "
       apt-get update && apt-get install -y cron openssl &&
-      pip install -r requirements.txt && 
+      pip install -r requirements.txt &&
       python maintenance_orchestrator.py"
     volumes:
       - /home/mills/collections/self-healing:/app
@@ -1386,7 +1386,7 @@ services:
     container_name: maelstrom-monitor
     working_dir: /app
     command: bash -c "
-      pip install -r requirements.txt && 
+      pip install -r requirements.txt &&
       python maelstrom_monitor.py"
     volumes:
       - /home/mills/collections/maelstrom-monitoring:/app
@@ -1417,7 +1417,7 @@ services:
     working_dir: /app
     command: bash -c "
       apt-get update && apt-get install -y procps &&
-      pip install -r requirements.txt && 
+      pip install -r requirements.txt &&
       python resource_monitor.py"
     volumes:
       - /home/mills/collections/resource-optimizer:/app
@@ -1631,7 +1631,7 @@ services:
       monitoring:
         ipv4_address: 172.30.0.48
 
-  # Threat Orchestrator Service  
+  # Threat Orchestrator Service
   threat-orchestrator:
     image: python:3.11-slim
     container_name: threat-orchestrator

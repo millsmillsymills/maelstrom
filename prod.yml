@@ -42,9 +42,9 @@ services:
       - analytics-stack
     working_dir: /app
     command: bash -c "
-      apt-get update && 
-      apt-get install -y curl && 
-      pip install -r requirements.txt && 
+      apt-get update &&
+      apt-get install -y curl &&
+      pip install -r requirements.txt &&
       python data_lifecycle_optimizer.py"
     volumes:
       - /home/mills/collections/data-optimizer:/app
@@ -82,9 +82,9 @@ services:
       - analytics-stack
     working_dir: /app
     command: bash -c "
-      apt-get update && 
-      apt-get install -y curl procps && 
-      pip install -r requirements.txt && 
+      apt-get update &&
+      apt-get install -y curl procps &&
+      pip install -r requirements.txt &&
       python resource_optimizer.py"
     volumes:
       - /home/mills/collections/resource-optimizer:/app
@@ -408,9 +408,9 @@ services:
       - security-stack
     working_dir: /app
     command: bash -c "
-      apt-get update && 
-      apt-get install -y curl iputils-ping traceroute nmap && 
-      pip install -r requirements.txt && 
+      apt-get update &&
+      apt-get install -y curl iputils-ping traceroute nmap &&
+      pip install -r requirements.txt &&
       python threat_intelligence_engine.py"
     volumes:
       - /home/mills/security/collections/threat-intelligence:/app
@@ -446,9 +446,9 @@ services:
       - security-stack
     working_dir: /app
     command: bash -c "
-      apt-get update && 
-      apt-get install -y iptables ipset curl tcpdump && 
-      pip install -r requirements.txt && 
+      apt-get update &&
+      apt-get install -y iptables ipset curl tcpdump &&
+      pip install -r requirements.txt &&
       python geopolitical_threat_detector.py"
     volumes:
       - /home/mills/security/collections/geopolitical-threat-detector:/app
@@ -483,9 +483,9 @@ services:
       - security-stack
     working_dir: /app
     command: bash -c "
-      apt-get update && 
-      apt-get install -y iptables ipset curl && 
-      pip install -r requirements.txt && 
+      apt-get update &&
+      apt-get install -y iptables ipset curl &&
+      pip install -r requirements.txt &&
       python automated_threat_response.py"
     volumes:
       - /home/mills/security/collections/threat-response:/app
@@ -514,7 +514,7 @@ services:
       - threat-intelligence
       - geopolitical-threat-detector
 
-  # Analytics Stack Profile  
+  # Analytics Stack Profile
   jaeger:
     image: jaegertracing/all-in-one:latest
     container_name: jaeger
@@ -555,9 +555,9 @@ services:
       - analytics-stack
     working_dir: /app
     command: bash -c "
-      apt-get update && 
-      apt-get install -y curl && 
-      pip install -r requirements.txt && 
+      apt-get update &&
+      apt-get install -y curl &&
+      pip install -r requirements.txt &&
       python self_healing_infrastructure.py"
     volumes:
       - /home/mills/collections/self-healing:/app
@@ -592,9 +592,9 @@ services:
       - analytics-stack
     working_dir: /app
     command: bash -c "
-      apt-get update && 
-      apt-get install -y iputils-ping curl && 
-      pip install -r requirements.txt && 
+      apt-get update &&
+      apt-get install -y iputils-ping curl &&
+      pip install -r requirements.txt &&
       python maelstrom_monitor.py"
     volumes:
       - /home/mills/collections/maelstrom-monitor:/app
@@ -629,9 +629,9 @@ services:
       - analytics-stack
     working_dir: /app
     command: bash -c "
-      apt-get update && 
-      apt-get install -y curl iputils-ping && 
-      pip install -r requirements.txt && 
+      apt-get update &&
+      apt-get install -y curl iputils-ping &&
+      pip install -r requirements.txt &&
       python unraid_monitor.py"
     volumes:
       - /home/mills/collections/unraid-monitor:/app
