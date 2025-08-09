@@ -30,8 +30,8 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
+          # Keep CI lightweight and reliable; install only tooling
           pip install pytest yamllint
-          find collections -name requirements.txt -exec pip install -r {} \;
 
       - name: Install shellcheck
         run: |
@@ -87,10 +87,15 @@ jobs:
       - name: Validate Docker Compose configuration
         run: |
           echo "::group::Docker Compose Validation"
+          # Ensure docker compose plugin is available
+          if ! docker compose version >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y docker-compose-plugin
+          fi
           # Validate base configuration
           if [ -f "base.yml" ]; then
-          echo "Validating base.yml..."
-          docker compose -f base.yml config --quiet
+            echo "Validating base.yml..."
+            docker compose -f base.yml config --quiet
           fi
 
           # Validate production overlay
