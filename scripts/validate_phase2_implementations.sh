@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Phase 2 Implementation Validation Script
 # Comprehensive testing and validation of all monitoring enhancements
 
@@ -158,7 +160,7 @@ test_network_security() {
     fi
     
     # Test 3: Security labels and annotations
-    local security_containers=$(docker ps --filter "label=com.docker.security" --quiet | wc -l)
+    local security_containers=$(${DOCKER} ps --filter "label=com.docker.security" --quiet | wc -l)
     if [[ $security_containers -gt 0 ]]; then
         test_passed "$category.security_labels" "$security_containers containers have security labels"
     else
@@ -197,7 +199,7 @@ test_advanced_alerting() {
     
     # Test 3: Prometheus rules validation
     if command -v promtool &>/dev/null; then
-        if docker exec prometheus promtool check rules /etc/prometheus/alert_rules.yml &>/dev/null; then
+        if ${DOCKER} exec prometheus promtool check rules /etc/prometheus/alert_rules.yml &>/dev/null; then
             test_passed "$category.rules_validation" "Prometheus rules syntax validation passed"
         else
             test_failed "$category.rules_validation" "Prometheus rules validation" "Syntax errors in rules"

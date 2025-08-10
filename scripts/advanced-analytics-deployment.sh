@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Advanced Analytics and ML Services Deployment
 
 set -e
@@ -618,9 +620,7 @@ import logging
 import requests
 import subprocess
 from datetime import datetime
-import docker
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+import ${DOCKER} logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class PerformanceOptimizer:
@@ -755,8 +755,8 @@ class PerformanceOptimizer:
         """Clean up disk space"""
         try:
             cleanup_commands = [
-                'docker system prune -f --volumes',
-                'docker image prune -f',
+                '${DOCKER} system prune -f --volumes',
+                '${DOCKER} image prune -f',
                 'find /tmp -type f -atime +7 -delete',
                 'find /var/log -name "*.log" -size +100M -delete'
             ]

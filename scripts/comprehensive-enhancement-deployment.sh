@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Comprehensive Enhancement Deployment Script
 # Deploys all implemented improvements and validates infrastructure
 
@@ -84,7 +86,7 @@ create_backup() {
     cp -r collections "$BACKUP_DIR/collections-original" 2>/dev/null || true
     
     # Export current container states
-    docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" > "$BACKUP_DIR/container-states-before.txt"
+    ${DOCKER} ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" > "$BACKUP_DIR/container-states-before.txt"
     
     success "Backup created at $BACKUP_DIR"
 }
@@ -115,9 +117,9 @@ deploy_caching_layer() {
     progress "Deploying Redis caching layer"
     
     # Start Redis cache if not already running
-    if ! docker ps | grep -q "redis-cache"; then
+    if ! ${DOCKER} ps | grep -q "redis-cache"; then
         log "Starting Redis cache container..."
-        docker run -d \
+        ${DOCKER} run -d \
             --name redis-cache-enhanced \
             --network monitoring \
             --ip 172.30.0.10 \
@@ -128,7 +130,7 @@ deploy_caching_layer() {
             redis:7-alpine redis-server /usr/local/etc/redis/redis.conf || warning "Redis deployment may need manual intervention"
     fi
     
-    validate_step "Redis caching" "docker ps | grep -q redis-cache"
+    validate_step "Redis caching" "${DOCKER} ps | grep -q redis-cache"
 }
 
 # Deploy Nginx gateway
@@ -139,9 +141,9 @@ deploy_nginx_gateway() {
     mkdir -p /var/cache/nginx/{grafana,prometheus,static}
     
     # Start Nginx gateway if not already running
-    if ! docker ps | grep -q "nginx-monitoring-gateway"; then
+    if ! ${DOCKER} ps | grep -q "nginx-monitoring-gateway"; then
         log "Starting Nginx monitoring gateway..."
-        docker run -d \
+        ${DOCKER} run -d \
             --name nginx-monitoring-gateway \
             --network monitoring \
             --ip 172.30.0.11 \
@@ -155,7 +157,7 @@ deploy_nginx_gateway() {
             nginx:alpine || warning "Nginx gateway deployment may need manual intervention"
     fi
     
-    validate_step "Nginx gateway" "docker ps | grep -q nginx-monitoring-gateway"
+    validate_step "Nginx gateway" "${DOCKER} ps | grep -q nginx-monitoring-gateway"
 }
 
 # Deploy enhanced MySQL exporter
@@ -163,12 +165,12 @@ deploy_mysql_exporter() {
     progress "Deploying enhanced MySQL exporter"
     
     # Stop existing mysql-exporter if running
-    docker stop mysql-exporter 2>/dev/null || true
-    docker rm mysql-exporter 2>/dev/null || true
+    ${DOCKER} stop mysql-exporter 2>/dev/null || true
+    ${DOCKER} rm mysql-exporter 2>/dev/null || true
     
     # Start enhanced MySQL exporter
     log "Starting enhanced MySQL exporter..."
-    docker run -d \
+    ${DOCKER} run -d \
         --name mysql-exporter-enhanced \
         --network monitoring \
         --ip 172.30.0.12 \
@@ -180,7 +182,7 @@ deploy_mysql_exporter() {
         -e DATA_SOURCE_NAME="exporter:Mon1t0r1ng_Exp0rt3r_2025!@tcp(464416e7dc23_zabbix-mysql:3306)/" \
         prom/mysqld-exporter:latest || warning "MySQL exporter deployment may need manual intervention"
     
-    validate_step "MySQL exporter" "docker ps | grep -q mysql-exporter-enhanced"
+    validate_step "MySQL exporter" "${DOCKER} ps | grep -q mysql-exporter-enhanced"
 }
 
 # Deploy health monitoring
@@ -188,9 +190,9 @@ deploy_health_monitoring() {
     progress "Deploying health monitoring service"
     
     # Start health monitor
-    if ! docker ps | grep -q "health-monitor"; then
+    if ! ${DOCKER} ps | grep -q "health-monitor"; then
         log "Starting health monitoring service..."
-        docker run -d \
+        ${DOCKER} run -d \
             --name health-monitor-enhanced \
             --network monitoring \
             --ip 172.30.0.31 \
@@ -203,7 +205,7 @@ deploy_health_monitoring() {
             alpine:latest sh -c "apk add --no-cache bash curl jq docker-cli && while true; do /app/health_check.sh; sleep 60; done" || warning "Health monitor deployment may need manual intervention"
     fi
     
-    validate_step "Health monitoring" "docker ps | grep -q health-monitor"
+    validate_step "Health monitoring" "${DOCKER} ps | grep -q health-monitor"
 }
 
 # Update Prometheus configuration
@@ -219,8 +221,8 @@ update_prometheus_config() {
     log "Adding enhanced rules to Prometheus configuration..."
     
     # Reload Prometheus configuration
-    if docker ps | grep -q prometheus; then
-        docker exec prometheus-enhanced kill -HUP 1 2>/dev/null || docker restart prometheus 2>/dev/null || warning "Prometheus reload may need manual intervention"
+    if ${DOCKER} ps | grep -q prometheus; then
+        ${DOCKER} exec prometheus-enhanced kill -HUP 1 2>/dev/null || ${DOCKER} restart prometheus 2>/dev/null || warning "Prometheus reload may need manual intervention"
     fi
     
     validate_step "Prometheus configuration" "test -f /home/mills/collections/prometheus/enhanced-recording-rules.yml"
@@ -231,15 +233,15 @@ update_grafana_config() {
     progress "Updating Grafana with enhanced configuration"
     
     # Backup existing Grafana config
-    if docker exec grafana test -f /etc/grafana/grafana.ini 2>/dev/null; then
-        docker cp grafana:/etc/grafana/grafana.ini "$BACKUP_DIR/grafana-original.ini" 2>/dev/null || true
+    if ${DOCKER} exec grafana test -f /etc/grafana/grafana.ini 2>/dev/null; then
+        ${DOCKER} cp grafana:/etc/grafana/grafana.ini "$BACKUP_DIR/grafana-original.ini" 2>/dev/null || true
     fi
     
     # Copy enhanced configuration
-    docker cp /home/mills/collections/grafana/grafana-enhanced.ini grafana:/etc/grafana/grafana.ini 2>/dev/null || warning "Grafana config update may need manual intervention"
+    ${DOCKER} cp /home/mills/collections/grafana/grafana-enhanced.ini grafana:/etc/grafana/grafana.ini 2>/dev/null || warning "Grafana config update may need manual intervention"
     
     # Restart Grafana to apply changes
-    docker restart grafana 2>/dev/null || warning "Grafana restart may need manual intervention"
+    ${DOCKER} restart grafana 2>/dev/null || warning "Grafana restart may need manual intervention"
     
     validate_step "Grafana configuration" "test -f /home/mills/collections/grafana/grafana-enhanced.ini"
 }
@@ -364,16 +366,16 @@ generate_validation_report() {
         "success_rate_percent": $deployment_success_rate
     },
     "infrastructure_status": {
-        "containers_running": $(docker ps | wc -l),
-        "containers_total": $(docker ps -a | wc -l),
-        "networks_configured": $(docker network ls | wc -l),
-        "volumes_created": $(docker volume ls | wc -l)
+        "containers_running": $(${DOCKER} ps | wc -l),
+        "containers_total": $(${DOCKER} ps -a | wc -l),
+        "networks_configured": $(${DOCKER} network ls | wc -l),
+        "volumes_created": $(${DOCKER} volume ls | wc -l)
     },
     "service_health": {
         "grafana": "$(curl -s http://localhost:3000/api/health | jq -r '.database' 2>/dev/null || echo 'unknown')",
         "prometheus": "$(curl -s http://localhost:9090/-/healthy &>/dev/null && echo 'healthy' || echo 'unhealthy')",
         "influxdb": "$(curl -s http://localhost:8086/ping &>/dev/null && echo 'healthy' || echo 'unhealthy')",
-        "redis_cache": "$(docker exec redis-cache-enhanced redis-cli ping 2>/dev/null || echo 'unavailable')"
+        "redis_cache": "$(${DOCKER} exec redis-cache-enhanced redis-cli ping 2>/dev/null || echo 'unavailable')"
     },
     "performance_metrics": {
         "grafana_response_time_seconds": $(curl -w "%{time_total}" -s -o /dev/null http://localhost:3000/api/health 2>/dev/null || echo "null"),
@@ -418,10 +420,10 @@ This deployment implemented comprehensive infrastructure enhancements including:
 - Network security hardening with firewall rules
 
 ### 📊 Infrastructure Status
-- **Total Containers:** $(docker ps -a | wc -l)
-- **Running Containers:** $(docker ps | wc -l)
-- **Docker Networks:** $(docker network ls | wc -l)
-- **Data Volumes:** $(docker volume ls | wc -l)
+- **Total Containers:** $(${DOCKER} ps -a | wc -l)
+- **Running Containers:** $(${DOCKER} ps | wc -l)
+- **Docker Networks:** $(${DOCKER} network ls | wc -l)
+- **Data Volumes:** $(${DOCKER} volume ls | wc -l)
 
 ### 🔧 Performance Improvements
 - Dashboard caching implemented via Redis
@@ -461,14 +463,14 @@ This deployment implemented comprehensive infrastructure enhancements including:
 If issues occur, restore from backup:
 \`\`\`bash
 # Stop enhanced services
-docker stop \$(docker ps -q --filter "name=enhanced")
+${DOCKER} stop \$(${DOCKER} ps -q --filter "name=enhanced")
 
 # Restore original configurations
 cp $BACKUP_DIR/docker-compose-original.yml docker-compose.yml
 cp $BACKUP_DIR/env-original .env
 
 # Restart original stack
-docker-compose up -d
+${DOCKER} compose up -d
 \`\`\`
 
 ---
@@ -485,7 +487,7 @@ main() {
     log "Deployment ID: $TIMESTAMP"
     
     # Pre-deployment checks
-    if ! command -v docker &> /dev/null; then
+    if ! command -v ${DOCKER} &> /dev/null; then
         error "Docker is not installed or not in PATH"
         exit 1
     fi

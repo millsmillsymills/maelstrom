@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+source /usr/local/lib/codex_env.sh 2>/dev/null || true
 
 COMPOSE_FILES=( -f base.yml -f docker-compose.secrets.yml )
 
@@ -32,9 +33,9 @@ check_http_retry() {
     i=$((i+1))
   done
   printf "[FAIL] %-18s %s (last code %s, expect %s)\n" "$name" "$url" "$code" "$ok_codes"
-  if have docker && [ -n "$service" ]; then
+  if have ${DOCKER} && [ -n "$service" ]; then
     echo "--- Logs: $service (last 80 lines) ---"
-    docker compose "${COMPOSE_FILES[@]}" logs --no-color --tail 80 "$service" || true
+    ${DOCKER} compose "${COMPOSE_FILES[@]}" logs --no-color --tail 80 "$service" || true
     echo "--- End logs: $service ---"
   fi
   return 1
@@ -42,9 +43,9 @@ check_http_retry() {
 
 echo "== Docker services (ps) =="
 if have docker; then
-  docker compose "${COMPOSE_FILES[@]}" ps || true
+  ${DOCKER} compose "${COMPOSE_FILES[@]}" ps || true
 else
-  echo "docker not available in PATH"
+  echo "${DOCKER} not available in PATH"
 fi
 
 echo
@@ -70,7 +71,7 @@ else
   printf "[FAIL] %-18s %s (code %s, expect 200-399)\n" "zabbix-web" "http://127.0.0.1:8080/" "$code"
   if have docker; then
     echo "--- Logs: zabbix-web (last 80 lines) ---"
-    docker compose "${COMPOSE_FILES[@]}" logs --no-color --tail 80 zabbix-web || true
+    ${DOCKER} compose "${COMPOSE_FILES[@]}" logs --no-color --tail 80 zabbix-web || true
     echo "--- End logs: zabbix-web ---"
   fi
   fail=$((fail+1))
@@ -81,7 +82,6 @@ if (( fail == 0 )); then
   echo "All checks passed."
   exit 0
 else
-  echo "$fail check(s) failed. Inspect logs with: docker compose ${COMPOSE_FILES[*]} logs <service>"
+  echo "$fail check(s) failed. Inspect logs with: ${DOCKER} compose ${COMPOSE_FILES[*]} logs <service>"
   exit 1
 fi
-

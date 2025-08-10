@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 set -euo pipefail
 
 # Run git commands non-interactively against GitHub using ephemeral GIT_ASKPASS.

@@ -52,7 +52,7 @@ sudo /home/mills/collections/security/scripts/configure-firewall.sh
 /home/mills/collections/scripts/stack-status.sh
 
 # Check for any issues
-docker-compose ps | grep -v "Up"
+${DOCKER} compose ps | grep -v "Up"
 
 # View recent alerts
 curl -s http://localhost:9093/api/v1/alerts | grep -i "firing" || echo "No active alerts"
@@ -119,7 +119,7 @@ cd collections/enhancements/advanced-alerting/
 ### Common Issues & Solutions
 ```bash
 # Service not responding
-docker-compose restart [service-name]
+${DOCKER} compose restart [service-name]
 
 # Disk space full
 /home/mills/collections/scripts/deep-cleanup.sh
@@ -137,9 +137,9 @@ cat /home/mills/collections/security/credentials.txt
 ### Emergency Procedures
 ```bash
 # Complete system reset (nuclear option)
-docker-compose down
+${DOCKER} compose down
 docker system prune -af
-docker-compose up -d
+${DOCKER} compose up -d
 
 # Restore from backup
 cd /home/mills/collections/backup/

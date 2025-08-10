@@ -95,30 +95,30 @@ The monitoring stack consists of several interconnected services:
 
 ## Common Commands
 
-**CRITICAL**: Always check current service status before making changes using `docker-compose ps` and the status table in README.md.
+**CRITICAL**: Always check current service status before making changes using `${DOCKER} compose ps` and the status table in README.md.
 
 ### Service Management
 ```bash
 # Check current service status (most important command)
-docker-compose ps
+${DOCKER} compose ps
 
 # View current stack health status
 cat README.md | grep -A 20 "Maelstrom Status"
 
 # Start all services (use with caution - some may need individual attention)
-docker-compose up -d
+${DOCKER} compose up -d
 
 # Stop all services
-docker-compose down
+${DOCKER} compose down
 
 # Restart specific service (preferred for individual service issues)
-docker-compose restart <service_name>
+${DOCKER} compose restart <service_name>
 
 # View service logs (essential for troubleshooting)
-docker-compose logs -f <service_name>
+${DOCKER} compose logs -f <service_name>
 
 # Follow logs for multiple services
-docker-compose logs -f <service1> <service2> <service3>
+${DOCKER} compose logs -f <service1> <service2> <service3>
 ```
 
 ### Configuration Management
@@ -126,11 +126,11 @@ docker-compose logs -f <service1> <service2> <service3>
 # Edit environment variables
 nano .env
 
-# Validate docker-compose configuration
-docker-compose config
+# Validate ${DOCKER} compose configuration
+${DOCKER} compose config
 
 # Pull latest images
-docker-compose pull
+${DOCKER} compose pull
 ```
 
 ### Data Management
@@ -145,25 +145,25 @@ docker exec -it influxdb influx
 docker exec -it zabbix-mysql mysql -u root -p
 
 # Rebuild Plex Data Collector container (the only service with custom Dockerfile)
-docker-compose build plex-data-collector
+${DOCKER} compose build plex-data-collector
 
 # Rebuild custom Python services (when requirements.txt changes)
-docker-compose build ml-analytics
-docker-compose build threat-intelligence
-docker-compose build unraid-monitor
+${DOCKER} compose build ml-analytics
+${DOCKER} compose build threat-intelligence
+${DOCKER} compose build unraid-monitor
 
 # Check service health and logs for Python services
-docker-compose logs -f --tail=50 <service_name>
+${DOCKER} compose logs -f --tail=50 <service_name>
 
 # Validate environment file
-docker-compose config --quiet
+${DOCKER} compose config --quiet
 ```
 
 ### Development & Testing
 ```bash
 # No automated testing framework available - manual validation only
 # ALWAYS validate service functionality through logs and health checks
-docker-compose logs -f <service_name>
+${DOCKER} compose logs -f <service_name>
 
 # Service health validation script (run frequently)
 /home/mills/collections/swag/validate_services.sh
@@ -175,7 +175,7 @@ docker exec -it <service_name> python -c "import <module>; print('OK')"
 docker exec prometheus promtool check rules /etc/prometheus/alert_rules.yml
 
 # Test configuration files before deployment (essential step)
-docker-compose config --quiet
+${DOCKER} compose config --quiet
 
 # Full deployment with comprehensive validation (use for major changes)
 ./docker/deploy_enhanced_stack.sh
@@ -197,7 +197,7 @@ docker exec influxdb influx -execute 'SHOW DATABASES'
 curl -i -XPOST "http://localhost:8086/write?db=telegraf" --data-binary "test_metric value=1"
 
 # Check metrics collection pipeline health
-docker-compose logs -f --tail=20 telegraf unpoller plex-data-collector network-discovery
+${DOCKER} compose logs -f --tail=20 telegraf unpoller plex-data-collector network-discovery
 
 # Monitor system performance after remediation
 docker stats --no-stream | head -20
@@ -215,10 +215,10 @@ docker exec suricata tail -f /var/log/suricata/eve.json
 docker exec zeek tail -f /usr/local/zeek/logs/current/conn.log
 
 # Check threat intelligence status
-docker-compose logs -f threat-intelligence
+${DOCKER} compose logs -f threat-intelligence
 
 # View security monitoring alerts
-docker-compose logs -f security-monitor
+${DOCKER} compose logs -f security-monitor
 
 # Check alert status
 curl -s http://localhost:9093/api/v1/alerts | jq '.'
@@ -234,7 +234,7 @@ curl http://localhost:9115/probe?module=http_2xx&target=http://grafana:3000
 curl http://localhost:9116/snmp?module=if_mib&target=192.168.1.1
 
 # Network discovery scan results
-docker-compose logs -f network-discovery
+${DOCKER} compose logs -f network-discovery
 ```
 
 ### Deployment & Maintenance
@@ -375,7 +375,7 @@ The stack uses multiple Docker networks with static IP assignments:
 - Multi-network architecture for service isolation and security
 - Extensive use of Python-based custom monitoring services (38 total services)
 - Only Plex Data Collector uses custom Dockerfile; all other Python services use base images with runtime pip installs
-- No formal testing framework - services are validated through docker-compose logs and service health monitoring
+- No formal testing framework - services are validated through ${DOCKER} compose logs and service health monitoring
 
 **Security Hardening:**
 - All containers use `no-new-privileges:true` security option
@@ -402,7 +402,7 @@ The stack uses multiple Docker networks with static IP assignments:
 **Development Workflow:**
 - Python services use runtime pip install from requirements.txt (no pre-built images)
 - Services restart automatically via `restart: unless-stopped`
-- Configuration changes require container restart: `docker-compose restart <service>`
+- Configuration changes require container restart: `${DOCKER} compose restart <service>`
 - Environment variables are managed centrally in `.env` file
 - All services mount their source code as volumes for easy development
 - **No formal testing framework**: Services validated through logs and health monitoring only
@@ -419,11 +419,11 @@ The stack uses multiple Docker networks with static IP assignments:
 ## Troubleshooting
 
 **Service Issues:**
-- Check service logs: `docker-compose logs -f <service>`
-- Verify container status: `docker-compose ps`
+- Check service logs: `${DOCKER} compose logs -f <service>`
+- Verify container status: `${DOCKER} compose ps`
 - Check resource usage: `docker stats`
-- Restart individual services: `docker-compose restart <service>`
-- Validate docker-compose configuration: `docker-compose config --quiet`
+- Restart individual services: `${DOCKER} compose restart <service>`
+- Validate ${DOCKER} compose configuration: `${DOCKER} compose config --quiet`
 - Check service health: `/home/mills/collections/swag/validate_services.sh`
 
 **Network Connectivity:**
@@ -433,7 +433,7 @@ The stack uses multiple Docker networks with static IP assignments:
 - Ensure MacVLAN interface (ens2) is available for Pi-hole
 
 **Configuration:**
-- Validate docker-compose syntax: `docker-compose config`
+- Validate ${DOCKER} compose syntax: `${DOCKER} compose config`
 - Ensure `.env` file contains all required variables
 - Check file permissions in `collections/` directories
 - Verify UniFi controller accessibility from Docker network
@@ -527,10 +527,10 @@ The stack uses multiple Docker networks with static IP assignments:
 # 1. Modify Python service code in collections/<service>/
 # 2. Update requirements.txt if adding dependencies
 # 3. Restart service to apply changes
-docker-compose restart <service_name>
+${DOCKER} compose restart <service_name>
 
 # 4. Monitor logs for issues
-docker-compose logs -f <service_name>
+${DOCKER} compose logs -f <service_name>
 
 # 5. Validate service health
 /home/mills/collections/swag/validate_services.sh
@@ -548,12 +548,12 @@ docker-compose logs -f <service_name>
 - All environment variables centralized in `.env` file
 - Service-specific configuration in `collections/<service>/` directories
 - Static IP assignments for reliable inter-service communication
-- Restart required for configuration changes: `docker-compose restart <service>`
+- Restart required for configuration changes: `${DOCKER} compose restart <service>`
 
 ## Working with this Infrastructure
 
 **Before Making Changes:**
-1. **Always check current status**: `docker-compose ps` and README.md status table
+1. **Always check current status**: `${DOCKER} compose ps` and README.md status table
 2. **Review recent logs**: Check `logs/` directory for auto-recovery events
 3. **Backup if needed**: The infrastructure has automated daily backups, but manual backups available
 4. **Understand service dependencies**: Many services are interconnected - check docker-compose.yml networks
@@ -565,7 +565,7 @@ docker-compose logs -f <service_name>
 - **Custom Python services**: Usually self-recover, check logs for import/dependency errors
 
 **Deployment Safety:**
-- **Test mode**: Use `docker-compose config --quiet` to validate before applying
+- **Test mode**: Use `${DOCKER} compose config --quiet` to validate before applying
 - **Staged deployment**: Restart individual services rather than entire stack when possible
 - **Rollback plan**: Keep `docker-compose.yml.backup` and use `./backups/` for configuration restoration
 - **Health validation**: Always run `/home/mills/collections/swag/validate_services.sh` after changes

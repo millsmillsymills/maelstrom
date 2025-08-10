@@ -7,8 +7,13 @@ on:
 jobs:
   lint-and-validate:
     runs-on: ubuntu-latest
+    env:
+      GIT_TERMINAL_PROMPT: 0
+      DEBIAN_FRONTEND: noninteractive
 
     steps:
+      - name: noninteractive-check
+        run: /usr/local/bin/codex-preflight
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -33,25 +38,25 @@ jobs:
 
       - name: Install shellcheck
         run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck
+          sudo -n apt-get update -y
+          sudo -n apt-get install -y shellcheck
 
       - name: Install Hadolint
         run: |
           wget -O hadolint https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64
           chmod +x hadolint
-          sudo mv hadolint /usr/local/bin/
+          sudo -n mv hadolint /usr/local/bin/
 
       - name: Install Trivy
         run: |
           set -euo pipefail
           if ! command -v trivy >/dev/null 2>&1; then
             echo "Installing Trivy..."
-            if sudo apt-get update -y && sudo apt-get install -y wget apt-transport-https gnupg lsb-release; then
-              wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add - || true
-              echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-              sudo apt-get update -y || true
-              sudo apt-get install -y trivy || true
+            if sudo -n apt-get update -y && sudo -n apt-get install -y wget apt-transport-https gnupg lsb-release; then
+              wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo -n apt-key add - || true
+              echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo -n tee -a /etc/apt/sources.list.d/trivy.list
+              sudo -n apt-get update -y || true
+              sudo -n apt-get install -y trivy || true
             else
               echo "⚠️ Skipping Trivy install due to apt failure"
             fi
@@ -95,8 +100,8 @@ jobs:
           echo "::group::Docker Compose Validation"
           # Ensure docker compose plugin is available
           if ! docker compose version >/dev/null 2>&1; then
-            sudo apt-get update -y
-            sudo apt-get install -y docker-compose-plugin
+            sudo -n apt-get update -y
+            sudo -n apt-get install -y ${DOCKER} compose-plugin
           fi
           # Validate base configuration
           if [ -f "base.yml" ]; then

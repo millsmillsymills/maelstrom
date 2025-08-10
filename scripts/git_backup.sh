@@ -1,8 +1,15 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Git Configuration Backup Script for Maelstrom
 # Safely backs up configuration changes to GitHub with conflict resolution
 
 set -euo pipefail
+# Ensure non-interactive Git auth if available
+if [ -f "scripts/github_auth.sh" ]; then
+    # shellcheck disable=SC1091
+    source scripts/github_auth.sh || true
+fi
 
 # Colors for output
 RED='\033[0;31m'

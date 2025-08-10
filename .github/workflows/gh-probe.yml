@@ -9,6 +9,8 @@ jobs:
   gh-probe:
     runs-on: ubuntu-latest
     steps:
+      - name: noninteractive-check
+        run: /usr/local/bin/codex-preflight
       - name: Checkout
         uses: actions/checkout@v4
 

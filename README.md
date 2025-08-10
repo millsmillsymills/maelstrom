@@ -14,7 +14,7 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 | Stack Health     | 🟢 Healthy |
 | Critical Alerts  | ✅ None |
 | Failing Services | 0 |
-| Last Check       | 2025-08-09 19:46 UTC |
+| Last Check       | 2025-08-09 21:39 UTC |
 <!-- STATUS-END -->
 
 ## Backups Scope
@@ -145,13 +145,13 @@ cd maelstrom
 ### Service Management
 ```bash
 # Start all services
-docker-compose up -d
+${DOCKER} compose up -d
 
 # Restart specific service  
-docker-compose restart <service_name>
+${DOCKER} compose restart <service_name>
 
 # View service logs
-docker-compose logs -f <service_name>
+${DOCKER} compose logs -f <service_name>
 
 # Check service health
 ./validate_stack.sh --health-checks-only
@@ -176,10 +176,10 @@ docker-compose logs -f <service_name>
 ./scripts/scan_images.sh
 
 # Check security monitoring
-docker-compose logs -f security-monitor threat-intelligence
+${DOCKER} compose logs -f security-monitor threat-intelligence
 
 # View threat intelligence alerts
-docker-compose logs -f geopolitical-threat-detector
+${DOCKER} compose logs -f geopolitical-threat-detector
 ```
 
 ### MySQL Exporter Credentials
@@ -187,7 +187,7 @@ docker-compose logs -f geopolitical-threat-detector
 - Create `secrets/mysql_exporter_my_cnf` (chmod 600) with:
   `[client]\nuser=zabbix\npassword=<zabbix_db_password>\nhost=zabbix-mysql\nport=3306`
 - Compose mounts it at `/etc/mysql/.my.cnf` and runs with `--config.my-cnf`.
-- Rotate credentials: update the secret file, then `docker restart mysql-exporter` or `docker-compose -f base.yml up --no-deps -d --force-recreate mysql-exporter`.
+- Rotate credentials: update the secret file, then `docker restart mysql-exporter` or `${DOCKER} compose -f base.yml up --no-deps -d --force-recreate mysql-exporter`.
 
 ## 📁 Project Structure
 
@@ -321,7 +321,7 @@ MIT License - See LICENSE file for details.
 - **Security alerts**: Review Wazuh dashboard and threat intelligence logs
 
 ### Logs & Debugging
-- **Service logs**: `docker-compose logs -f <service>`
+- **Service logs**: `${DOCKER} compose logs -f <service>`
 - **Validation logs**: `./validate_stack.sh` generates detailed reports
 - **Backup logs**: Located in `/home/mills/logs/`
 - **Security logs**: Wazuh dashboard and `/var/log/` mounts

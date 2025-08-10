@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 
 # Central GitHub token provider (Bash)
 # Priority:
@@ -115,4 +117,3 @@ fi
 
 # Default behavior: print token
 get_access_token
-

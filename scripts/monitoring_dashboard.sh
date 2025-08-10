@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Advanced Monitoring Dashboard for Maelstrom
 # Real-time infrastructure monitoring with GitHub integration
 
@@ -48,7 +50,7 @@ get_service_status() {
         state=$(echo "$line" | cut -d: -f3)
         
         # Get health status
-        health=$(docker inspect "$name" --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
+        health=$(${DOCKER} inspect "$name" --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
         
         # Determine display status
         local display_status color
@@ -83,7 +85,7 @@ get_service_status() {
         
         printf "${color}%-25s${NC} %s\n" "$name" "$display_status"
         
-    done < <(docker ps --format "{{.Names}}:{{.Status}}:{{.State}}" 2>/dev/null || true)
+    done < <(${DOCKER} ps --format "{{.Names}}:{{.Status}}:{{.State}}" 2>/dev/null || true)
     
     echo ""
     echo -e "${GREEN}✅ Healthy: $healthy${NC}  ${YELLOW}🟡 Starting: $starting${NC}  ${RED}❌ Unhealthy: $unhealthy${NC}"
@@ -107,7 +109,7 @@ get_resource_usage() {
     
     # Docker stats (top 10 by memory)
     echo -e "${PURPLE}Top Containers by Memory:${NC}"
-    docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" 2>/dev/null | \
+    ${DOCKER} stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" 2>/dev/null | \
         head -11 | tail -10 | while read -r line; do
         echo "  $line"
     done
@@ -253,7 +255,7 @@ get_logs_summary() {
     
     # Docker events (last 10)
     echo -e "${CYAN}🐳 Recent Docker events:${NC}"
-    docker events --since="5m" --format "{{.Time}} {{.Action}} {{.Actor.Attributes.name}}" 2>/dev/null | tail -5 | \
+    ${DOCKER} events --since="5m" --format "{{.Time}} {{.Action}} {{.Actor.Attributes.name}}" 2>/dev/null | tail -5 | \
         while read -r line; do
             echo "   $line"
         done || echo "   No recent events"
@@ -307,7 +309,7 @@ handle_input() {
         "r"|"R")
             read -p "Enter service name to restart: " service_name
             if [[ -n "$service_name" ]]; then
-                docker-compose restart "$service_name"
+                ${DOCKER} compose restart "$service_name"
                 echo "Restarted $service_name"
             fi
             read -p "Press Enter to continue..."
@@ -315,7 +317,7 @@ handle_input() {
         "l"|"L")
             read -p "Enter service name for logs: " service_name
             if [[ -n "$service_name" ]]; then
-                docker-compose logs --tail=50 -f "$service_name"
+                ${DOCKER} compose logs --tail=50 -f "$service_name"
             fi
             ;;
         "g"|"G")

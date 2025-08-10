@@ -73,13 +73,13 @@ repos:
   # Docker Compose validation
   - repo: local
     hooks:
-      - id: docker-compose-validate
+      - id: ${DOCKER} compose-validate
         name: Validate Docker Compose
         description: Validate Docker Compose configuration
         entry: bash
         language: system
         pass_filenames: false
-        args: ['-c', 'docker-compose -f base.yml config --quiet && docker-compose -f base.yml -f prod.yml config --quiet']
+        args: ['-c', '${DOCKER} compose -f base.yml config --quiet && ${DOCKER} compose -f base.yml -f prod.yml config --quiet']
         files: \.(yml|yaml)$
 
   # Custom validation hooks
@@ -189,5 +189,5 @@ ci:
   autoupdate_branch: ''
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
   autoupdate_schedule: weekly
-  skip: [trivy-config, docker-compose-validate]
+  skip: [trivy-config, ${DOCKER} compose-validate]
   submodules: false

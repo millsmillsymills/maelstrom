@@ -3,6 +3,7 @@
 # Creates cron jobs for autonomous operation
 
 set -euo pipefail
+source /usr/local/lib/codex_env.sh 2>/dev/null || true
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -90,7 +91,7 @@ echo ""
 # Create systemd service for monitoring dashboard (optional)
 log "Creating systemd service for monitoring dashboard..."
 
-cat > /tmp/maelstrom-dashboard.service << EOF
+SERVICE_CONTENT=$(cat <<EOF
 [Unit]
 Description=Maelstrom Monitoring Dashboard
 After=docker.service
@@ -109,16 +110,17 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 EOF
+)
 
-if sudo cp /tmp/maelstrom-dashboard.service /etc/systemd/system/ 2>/dev/null; then
-    sudo systemctl daemon-reload
-    success "Systemd service created (run 'sudo systemctl enable maelstrom-dashboard' to enable)"
+if write_root "/etc/systemd/system/maelstrom-dashboard.service" "$SERVICE_CONTENT" 2>/dev/null; then
+    sysctl_wrap daemon-reload || true
+    success "Systemd service created (enable with: ${SUDO:+${SUDO} }systemctl enable maelstrom-dashboard)"
 else
-    warning "Could not create systemd service (no sudo access)"
+    warning "Could not create systemd service (no non-interactive ${SUDO} access)"
 fi
 
 # Verify cron service is running
-if systemctl is-active --quiet cron 2>/dev/null || systemctl is-active --quiet crond 2>/dev/null; then
+if sysctl_wrap is-active --quiet cron 2>/dev/null || sysctl_wrap is-active --quiet crond 2>/dev/null; then
     success "Cron service is running"
 else
     warning "Cron service may not be running - please check system configuration"

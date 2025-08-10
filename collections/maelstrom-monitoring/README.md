@@ -2,7 +2,7 @@
 
 - Purpose: Service configuration for maelstrom-monitoring within the Maelstrom stack.
 - Validate:
-  - docker-compose -f base.yml config --quiet
+  - ${DOCKER} compose -f base.yml config --quiet
   - ./validate_stack.sh --quick
 - Notes:
   - Keep secrets in secrets/ (chmod 0600); do not commit.

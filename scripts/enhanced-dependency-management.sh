@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Enhanced Service Dependency Management Implementation
 
 set -e
@@ -62,8 +64,8 @@ check_http_service() {
 check_docker_service() {
     local service="$1"
     
-    if docker ps --format "{{.Names}}" | grep -q "^${service}$"; then
-        local status=$(docker inspect --format="{{.State.Status}}" "$service" 2>/dev/null)
+    if ${DOCKER} ps --format "{{.Names}}" | grep -q "^${service}$"; then
+        local status=$(${DOCKER} inspect --format="{{.State.Status}}" "$service" 2>/dev/null)
         if [[ "$status" == "running" ]]; then
             return 0
         fi
@@ -173,13 +175,13 @@ restart_service_with_deps() {
     echo "Restarting $service with dependency checks..."
     
     # Stop the service
-    docker stop "$service" 2>/dev/null || true
+    ${DOCKER} stop "$service" 2>/dev/null || true
     
     # Wait for dependencies
     check_service_dependencies "$service"
     
     # Start the service
-    docker start "$service" 2>/dev/null || true
+    ${DOCKER} start "$service" 2>/dev/null || true
     
     # Wait and verify
     sleep 10
@@ -281,13 +283,13 @@ start_service_with_wait() {
     log_orchestrator "Starting $service..."
     
     # Check if service exists
-    if ! docker ps -a --format "{{.Names}}" | grep -q "^${service}$"; then
+    if ! ${DOCKER} ps -a --format "{{.Names}}" | grep -q "^${service}$"; then
         log_orchestrator "Service $service not found, skipping"
         return 0
     fi
     
     # Start the service
-    docker start "$service" 2>/dev/null || {
+    ${DOCKER} start "$service" 2>/dev/null || {
         log_orchestrator "Failed to start $service"
         return 1
     }
@@ -295,7 +297,7 @@ start_service_with_wait() {
     # Wait for service to be ready
     local count=0
     while [ $count -lt $wait_time ]; do
-        local status=$(docker inspect --format="{{.State.Status}}" "$service" 2>/dev/null)
+        local status=$(${DOCKER} inspect --format="{{.State.Status}}" "$service" 2>/dev/null)
         
         if [[ "$status" == "running" ]]; then
             log_orchestrator "✅ $service is running"
@@ -361,9 +363,9 @@ orchestrated_shutdown() {
     local shutdown_order=($(printf '%s\n' "${STARTUP_ORDER[@]}" | tac))
     
     for service in "${shutdown_order[@]}"; do
-        if docker ps --format "{{.Names}}" | grep -q "^${service}$"; then
+        if ${DOCKER} ps --format "{{.Names}}" | grep -q "^${service}$"; then
             log_orchestrator "Stopping $service..."
-            docker stop "$service" --time 30 2>/dev/null || true
+            ${DOCKER} stop "$service" --time 30 2>/dev/null || true
             sleep 2
         fi
     done
@@ -396,8 +398,7 @@ create_dependency_monitor() {
     cat > /home/mills/collections/health-system/dependency-monitor.py << 'EOF'
 #!/usr/bin/env python3
 import time
-import docker
-import logging
+import ${DOCKER} import logging
 import json
 from datetime import datetime
 from collections import defaultdict
@@ -644,13 +645,13 @@ recover_grafana() {
     log_recovery "Recovering Grafana service"
     
     # Reset admin password
-    docker exec grafana bash -c "grafana-cli admin reset-admin-password admin123" 2>/dev/null || true
+    ${DOCKER} exec grafana bash -c "grafana-cli admin reset-admin-password admin123" 2>/dev/null || true
     
     # Check database connectivity
-    docker exec grafana bash -c "grafana-cli admin data-migration run" 2>/dev/null || true
+    ${DOCKER} exec grafana bash -c "grafana-cli admin data-migration run" 2>/dev/null || true
     
     # Restart with clean state
-    docker restart grafana
+    ${DOCKER} restart grafana
     sleep 30
     
     # Verify recovery
@@ -667,13 +668,13 @@ recover_prometheus() {
     log_recovery "Recovering Prometheus service"
     
     # Check configuration
-    docker exec prometheus promtool check config /etc/prometheus/prometheus.yml || {
+    ${DOCKER} exec prometheus promtool check config /etc/prometheus/prometheus.yml || {
         log_recovery "❌ Prometheus configuration invalid"
         return 1
     }
     
     # Restart service
-    docker restart prometheus
+    ${DOCKER} restart prometheus
     sleep 20
     
     # Verify recovery
@@ -690,11 +691,11 @@ recover_mysql_exporter() {
     log_recovery "Recovering MySQL Exporter service"
     
     # Stop existing instances
-    docker stop mysql-exporter-stable mysql-exporter-production 2>/dev/null || true
-    docker rm mysql-exporter-stable mysql-exporter-production 2>/dev/null || true
+    ${DOCKER} stop mysql-exporter-stable mysql-exporter-production 2>/dev/null || true
+    ${DOCKER} rm mysql-exporter-stable mysql-exporter-production 2>/dev/null || true
     
     # Deploy minimal stable version
-    docker run -d \
+    ${DOCKER} run -d \
         --name mysql-exporter-recovery \
         --network mills_monitoring \
         --restart unless-stopped \
@@ -706,7 +707,7 @@ recover_mysql_exporter() {
         --collect.global_status
     
     sleep 10
-    if docker ps | grep -q mysql-exporter-recovery; then
+    if ${DOCKER} ps | grep -q mysql-exporter-recovery; then
         log_recovery "✅ MySQL Exporter recovery successful"
         return 0
     else
@@ -733,10 +734,10 @@ recover_service() {
         *)
             # Generic recovery
             log_recovery "Generic recovery for $service"
-            docker restart "$service"
+            ${DOCKER} restart "$service"
             sleep 15
             
-            if docker ps | grep -q "$service"; then
+            if ${DOCKER} ps | grep -q "$service"; then
                 log_recovery "✅ Generic recovery successful for $service"
                 return 0
             else
@@ -756,8 +757,8 @@ auto_recovery() {
     
     for service in "${services_to_check[@]}"; do
         # Check if service is unhealthy
-        if ! docker ps --format "{{.Names}}" | grep -q "^${service}$" || \
-           docker ps --format "{{.Names}}\t{{.Status}}" | grep "$service" | grep -q "Restarting"; then
+        if ! ${DOCKER} ps --format "{{.Names}}" | grep -q "^${service}$" || \
+           ${DOCKER} ps --format "{{.Names}}\t{{.Status}}" | grep "$service" | grep -q "Restarting"; then
             
             log_recovery "Service $service needs recovery"
             recover_service "$service"

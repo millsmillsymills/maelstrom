@@ -56,7 +56,7 @@ This assessment evaluates the configuration quality of a production-grade monito
 3. **Dependency management**: Use `depends_on` with `condition: service_healthy`
 
 **Priority 2 (High):**
-1. **Configuration validation**: Implement `docker-compose config` validation in CI/CD
+1. **Configuration validation**: Implement `${DOCKER} compose config` validation in CI/CD
 2. **Service grouping**: Organize services into logical groups using profiles
 3. **Network segmentation**: Implement network policies for enhanced security
 
@@ -394,8 +394,8 @@ grafana:
 1. **Fix Container Failures** 🚨
    ```bash
    # Investigate and fix restart loops
-   docker-compose logs mysql-exporter zeek plex-data-collector
-   docker-compose restart mysql-exporter zeek plex-data-collector
+   ${DOCKER} compose logs mysql-exporter zeek plex-data-collector
+   ${DOCKER} compose restart mysql-exporter zeek plex-data-collector
    ```
 
 2. **Address Grafana Memory Issue** 🚨

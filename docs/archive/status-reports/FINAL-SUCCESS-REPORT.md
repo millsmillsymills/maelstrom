@@ -134,7 +134,7 @@ Your comprehensive monitoring infrastructure has been successfully transformed f
 ### **Emergency Procedures:**
 ```bash
 # Quick service restart
-docker-compose restart [service-name]
+${DOCKER} compose restart [service-name]
 
 # System recovery
 # Follow procedures in collections/docs/operational-runbooks.md

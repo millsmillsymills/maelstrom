@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Final Enhancement Validation Script
 # Validates all implemented improvements
 
@@ -97,7 +99,7 @@ test_data_pipeline() {
     
     test_result "Telegraf metrics available" "curl -s http://localhost:9273/metrics | grep -q '^# HELP'"
     test_result "Prometheus targets exist" "curl -s http://localhost:9090/api/v1/targets | grep -q activeTargets"
-    test_result "InfluxDB databases exist" "docker exec influxdb influx -execute 'SHOW DATABASES' | grep -q telegraf"
+    test_result "InfluxDB databases exist" "${DOCKER} exec influxdb influx -execute 'SHOW DATABASES' | grep -q telegraf"
 }
 
 # Container status tests
@@ -107,7 +109,7 @@ test_container_status() {
     local containers=("grafana" "prometheus" "influxdb" "telegraf" "node-exporter" "alertmanager")
     
     for container in "${containers[@]}"; do
-        test_result "$container container running" "docker ps | grep -q $container"
+        test_result "$container container running" "${DOCKER} ps | grep -q $container"
     done
 }
 
@@ -252,11 +254,11 @@ curl http://localhost:9090/-/healthy
 curl http://localhost:8086/ping
 
 # Validate configurations
-docker-compose config --quiet
+${DOCKER} compose config --quiet
 /home/mills/collections/health-monitor/health_check.sh
 
 # Check container status
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+${DOCKER} ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 \`\`\`
 
 ### Emergency Contacts

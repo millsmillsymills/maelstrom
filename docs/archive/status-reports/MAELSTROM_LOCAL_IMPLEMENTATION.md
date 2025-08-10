@@ -91,7 +91,7 @@ SWAG_STAGING=false                     # Production certificates
 ### **1. Start SWAG Service**
 ```bash
 cd /home/mills
-docker-compose up -d swag
+${DOCKER} compose up -d swag
 ```
 
 ### **2. Create SSL Certificates**

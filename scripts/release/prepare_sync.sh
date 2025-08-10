@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 set -euo pipefail
 
 echo "== Pre-sync safety checks =="
@@ -28,9 +30,9 @@ fi
 echo
 echo "-- Compose config validation --"
 if have docker; then
-  docker compose -f base.yml -f docker-compose.secrets.yml config --quiet && echo "Compose config OK" || { echo "Compose config FAILED"; exit 1; }
+  ${DOCKER} compose -f base.yml -f docker-compose.secrets.yml config --quiet && echo "Compose config OK" || { echo "Compose config FAILED"; exit 1; }
 else
-  echo "docker not found; skip compose validation"
+  echo "${DOCKER} not found; skip compose validation"
 fi
 
 echo
@@ -39,4 +41,3 @@ echo "Run: pre-commit install && pre-commit run --all-files"
 
 echo
 echo "Pre-sync checks complete."
-

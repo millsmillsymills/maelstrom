@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 #
 # Dev/CI Tooling Installer for Maelstrom
 # Sets up dependable local tooling: Python venv, linters, test runners,
@@ -82,8 +84,8 @@ parse_args() {
 }
 
 apt_install() {
-  sudo apt-get update -y
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"
+  ${SUDO} apt-get update -y
+  ${SUDO} DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"
 }
 
 brew_install() { brew install "$@"; }
@@ -103,19 +105,19 @@ ensure_prereqs() {
 }
 
 ensure_docker() {
-  need_cmd docker && { log "Docker already installed"; return; }
+  need_cmd ${DOCKER} && { log "Docker already installed"; return; }
   if is_linux; then
     if $NONINTERACTIVE || prompt_yes "Install Docker Engine via apt?"; then
       # Official Docker install per https://docs.docker.com/engine/install/ubuntu/
-      sudo install -m 0755 -d /etc/apt/keyrings
-      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-      sudo chmod a+r /etc/apt/keyrings/docker.gpg
+      ${SUDO} install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | ${SUDO} gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      ${SUDO} chmod a+r /etc/apt/keyrings/docker.gpg
       echo \
 "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
   $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-        sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-      apt_install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-      sudo usermod -aG docker "$USER" || true
+        ${SUDO} tee /etc/apt/sources.list.d/docker.list > /dev/null
+      apt_install docker-ce docker-ce-cli containerd.io docker-buildx-plugin ${DOCKER} compose-plugin
+      ${SUDO} usermod -aG ${DOCKER} "$USER" || true
       log "Docker installed. You may need to re-login for group changes."
     fi
   elif is_macos; then
@@ -124,10 +126,10 @@ ensure_docker() {
 }
 
 ensure_compose() {
-  need_cmd docker && docker compose version >/dev/null 2>&1 && { log "Docker Compose plugin available"; return; }
+  need_cmd ${DOCKER} && ${DOCKER} compose version >/dev/null 2>&1 && { log "Docker Compose plugin available"; return; }
   if is_linux; then
     if $NONINTERACTIVE || prompt_yes "Install Docker Compose plugin (v2) via apt?"; then
-      apt_install docker-compose-plugin
+      apt_install ${DOCKER} compose-plugin
     fi
   elif is_macos; then
     warn "Compose plugin ships with Docker Desktop on macOS."
@@ -155,8 +157,8 @@ install_hadolint() {
   esac
   dest="/usr/local/bin/hadolint"
   if $NONINTERACTIVE || prompt_yes "Download hadolint to ${dest}? Requires sudo."; then
-    curl -fsSL "$url" | sudo tee "$dest" >/dev/null
-    sudo chmod +x "$dest"
+    curl -fsSL "$url" | ${SUDO} tee "$dest" >/dev/null
+    ${SUDO} chmod +x "$dest"
     log "hadolint installed to $dest"
   fi
 }
@@ -165,9 +167,9 @@ install_trivy() {
   if need_cmd trivy; then log "Trivy present"; return; fi
   if is_linux; then
     if $NONINTERACTIVE || prompt_yes "Install Trivy via apt repo?"; then
-      sudo apt-get install -y wget apt-transport-https gnupg lsb-release
-      wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
-      echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb stable main" | sudo tee /etc/apt/sources.list.d/trivy.list
+      ${SUDO} apt-get install -y wget apt-transport-https gnupg lsb-release
+      wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | ${SUDO} gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+      echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb stable main" | ${SUDO} tee /etc/apt/sources.list.d/trivy.list
       apt_install trivy
     fi
   elif is_macos; then
@@ -238,4 +240,3 @@ main() {
 }
 
 main "$@"
-

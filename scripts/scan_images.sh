@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Image vulnerability scanning script using Trivy
 # Scans all container images in docker-compose.yml for HIGH and CRITICAL vulnerabilities
 # Returns non-zero exit code if vulnerabilities are found

@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Comprehensive Infrastructure Fix Implementation
 # Addresses all pending issues and enhancements
 
@@ -29,8 +31,8 @@ fix_mysql_exporter() {
     info "Phase 1.1: Fixing MySQL Exporter authentication"
     
     # Stop the problematic containers
-    docker stop mysql-exporter-fixed mysql-exporter-production 2>/dev/null || true
-    docker rm mysql-exporter-fixed mysql-exporter-production 2>/dev/null || true
+    ${DOCKER} stop mysql-exporter-fixed mysql-exporter-production 2>/dev/null || true
+    ${DOCKER} rm mysql-exporter-fixed mysql-exporter-production 2>/dev/null || true
     
     # Create proper MySQL exporter configuration
     cat > /home/mills/collections/mysql-exporter/mysql-exporter.env << 'EOF'
@@ -57,7 +59,7 @@ MYSQLD_EXPORTER_COLLECT_AUTO_INCREMENT_COLUMNS=true
 EOF
 
     # Deploy fixed MySQL exporter
-    docker run -d \
+    ${DOCKER} run -d \
         --name mysql-exporter-production \
         --network mills_monitoring \
         --ip 172.30.0.55 \
@@ -87,7 +89,7 @@ EOF
         --collect.info_schema.innodb_cmpmem
 
     sleep 10
-    if docker ps | grep -q mysql-exporter-production; then
+    if ${DOCKER} ps | grep -q mysql-exporter-production; then
         success "MySQL Exporter fixed and running"
     else
         error "MySQL Exporter still failing"
@@ -98,7 +100,7 @@ fix_threat_intelligence() {
     info "Phase 1.2: Fixing Threat Intelligence service"
     
     # Install missing system dependencies
-    docker exec threat-intelligence bash -c "
+    ${DOCKER} exec threat-intelligence bash -c "
         apt-get update && 
         apt-get install -y libpcap-dev gcc python3-dev build-essential &&
         pip install pypcap scapy requests python-dateutil
@@ -166,10 +168,10 @@ if __name__ == "__main__":
 EOF
 
     # Restart with minimal implementation
-    docker restart threat-intelligence
+    ${DOCKER} restart threat-intelligence
     
     sleep 15
-    if docker ps | grep -q threat-intelligence; then
+    if ${DOCKER} ps | grep -q threat-intelligence; then
         success "Threat Intelligence service stabilized"
     else
         warning "Threat Intelligence still has issues - continuing with minimal implementation"
@@ -180,8 +182,8 @@ fix_security_monitor() {
     info "Phase 1.3: Fixing Security Monitor disk space issue"
     
     # Clean up Docker system to free space
-    docker system prune -f
-    docker image prune -f
+    ${DOCKER} system prune -f
+    ${DOCKER} image prune -f
     
     # Create lightweight security monitor
     cat > /home/mills/collections/security-monitor/lightweight_monitor.py << 'EOF'
@@ -260,10 +262,10 @@ if __name__ == "__main__":
 EOF
 
     # Restart security monitor
-    docker restart security-monitor
+    ${DOCKER} restart security-monitor
     
     sleep 10
-    if docker ps | grep -q security-monitor; then
+    if ${DOCKER} ps | grep -q security-monitor; then
         success "Security Monitor fixed and running"
     else
         warning "Security Monitor still has issues"
@@ -320,10 +322,10 @@ logging.files:
 EOF
 
     # Restart Wazuh manager
-    docker restart wazuh-manager
+    ${DOCKER} restart wazuh-manager
     
     sleep 30
-    if docker ps | grep -q wazuh-manager; then
+    if ${DOCKER} ps | grep -q wazuh-manager; then
         success "Wazuh Manager configuration fixed"
     else
         warning "Wazuh Manager still restarting - may need manual intervention"
@@ -384,10 +386,10 @@ mkdir -p "$BACKUP_DIR"
 echo "Starting database backups..."
 
 # InfluxDB backup
-docker exec influxdb influxd backup -portable "/backup/influxdb-${TIMESTAMP}" 2>/dev/null || echo "InfluxDB backup skipped"
+${DOCKER} exec influxdb influxd backup -portable "/backup/influxdb-${TIMESTAMP}" 2>/dev/null || echo "InfluxDB backup skipped"
 
 # MySQL backup
-docker exec zabbix-mysql mysqldump -u root -pzabbix_password --all-databases > "$BACKUP_DIR/mysql-${TIMESTAMP}.sql" 2>/dev/null || echo "MySQL backup skipped"
+${DOCKER} exec zabbix-mysql mysqldump -u root -pzabbix_password --all-databases > "$BACKUP_DIR/mysql-${TIMESTAMP}.sql" 2>/dev/null || echo "MySQL backup skipped"
 
 # Configuration backups
 echo "Backing up configurations..."
@@ -428,17 +430,17 @@ echo "========================================" >> "$SCAN_RESULTS"
 
 # Check for containers without security options
 echo "Containers without security hardening:" >> "$SCAN_RESULTS"
-docker ps --format "table {{.Names}}\t{{.Command}}" | grep -v "no-new-privileges" | head -10 >> "$SCAN_RESULTS"
+${DOCKER} ps --format "table {{.Names}}\t{{.Command}}" | grep -v "no-new-privileges" | head -10 >> "$SCAN_RESULTS"
 
 # Check resource limits
 echo -e "\nContainers without resource limits:" >> "$SCAN_RESULTS"
-docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}" | head -20 >> "$SCAN_RESULTS"
+${DOCKER} stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}" | head -20 >> "$SCAN_RESULTS"
 
 # Check running processes
 echo -e "\nActive container processes:" >> "$SCAN_RESULTS"
-docker ps --format "{{.Names}}" | head -10 | while read container; do
+${DOCKER} ps --format "{{.Names}}" | head -10 | while read container; do
     echo "Container: $container" >> "$SCAN_RESULTS"
-    docker exec "$container" ps aux 2>/dev/null | head -5 >> "$SCAN_RESULTS" || echo "Cannot access $container" >> "$SCAN_RESULTS"
+    ${DOCKER} exec "$container" ps aux 2>/dev/null | head -5 >> "$SCAN_RESULTS" || echo "Cannot access $container" >> "$SCAN_RESULTS"
 done
 
 echo "Security scan completed: $SCAN_RESULTS"
@@ -585,7 +587,7 @@ for dir in "${LOG_DIRS[@]}"; do
 done
 
 # Clean up Docker logs
-docker system prune -f --filter "until=168h" 2>/dev/null || true
+${DOCKER} system prune -f --filter "until=168h" 2>/dev/null || true
 
 echo "Log management completed: $(date)"
 EOF
@@ -613,16 +615,16 @@ echo "=============================================" >> "$VALIDATION_LOG"
 
 # Docker Compose validation
 echo -e "\n1. Docker Compose Validation:" >> "$VALIDATION_LOG"
-if docker-compose config --quiet 2>/dev/null; then
+if ${DOCKER} compose config --quiet 2>/dev/null; then
     echo "✅ Docker Compose configuration is valid" >> "$VALIDATION_LOG"
 else
     echo "❌ Docker Compose configuration has errors" >> "$VALIDATION_LOG"
-    docker-compose config 2>&1 | head -10 >> "$VALIDATION_LOG"
+    ${DOCKER} compose config 2>&1 | head -10 >> "$VALIDATION_LOG"
 fi
 
 # Prometheus configuration validation
 echo -e "\n2. Prometheus Configuration:" >> "$VALIDATION_LOG"
-if docker exec prometheus promtool check config /etc/prometheus/prometheus.yml 2>/dev/null; then
+if ${DOCKER} exec prometheus promtool check config /etc/prometheus/prometheus.yml 2>/dev/null; then
     echo "✅ Prometheus configuration is valid" >> "$VALIDATION_LOG"
 else
     echo "❌ Prometheus configuration has errors" >> "$VALIDATION_LOG"
@@ -642,7 +644,7 @@ done
 echo -e "\n4. Service Health Check:" >> "$VALIDATION_LOG"
 services=(grafana prometheus influxdb alertmanager)
 for service in "${services[@]}"; do
-    if docker ps | grep -q "$service"; then
+    if ${DOCKER} ps | grep -q "$service"; then
         echo "✅ $service is running" >> "$VALIDATION_LOG"
     else
         echo "❌ $service is not running" >> "$VALIDATION_LOG"
@@ -684,7 +686,7 @@ main() {
     log "🎉 Comprehensive infrastructure fixes and enhancements completed!"
     
     # Generate final status report
-    docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" > "/home/mills/logs/final-status-${TIMESTAMP}.log"
+    ${DOCKER} ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" > "/home/mills/logs/final-status-${TIMESTAMP}.log"
     
     success "All implementations completed successfully"
     info "Log file: $LOG_FILE"

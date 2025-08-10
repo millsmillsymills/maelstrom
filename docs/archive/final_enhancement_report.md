@@ -309,7 +309,7 @@ A comprehensive validation framework has been implemented to ensure all enhancem
 /home/mills/collections/backup/backup-health-check.sh
 
 # Security monitoring
-docker-compose logs -f security-monitor threat-intelligence
+${DOCKER} compose logs -f security-monitor threat-intelligence
 ```
 
 ### Weekly Maintenance
@@ -339,7 +339,7 @@ docker-compose logs -f security-monitor threat-intelligence
 ### Emergency Procedures
 ```bash
 # Service recovery
-docker-compose restart <service>
+${DOCKER} compose restart <service>
 
 # Configuration rollback
 /home/mills/deploy_performance_optimizations.sh --rollback

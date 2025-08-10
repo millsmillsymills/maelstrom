@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 """
 README Status Update Script for Maelstrom Monitoring Stack
 Updates the dynamic status block in README.md with current service health information
