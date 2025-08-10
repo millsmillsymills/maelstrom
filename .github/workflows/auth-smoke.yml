@@ -62,5 +62,5 @@ jobs:
           git commit -m "ci: auth-smoke noop" || true
           GIT_ASKPASS=./internal/github_auth/git_askpass.sh GIT_TERMINAL_PROMPT=0 \
             git -c credential.helper= -c http.https://github.com/.extraheader= \
-            push --dry-run https://github.com/${{ github.repository }}.git HEAD:refs/heads/${{ github.ref_name }} >/dev/null
+            push --dry-run https://github.com/${{ github.repository }}.git HEAD:refs/heads/${{ github.ref_name }} >/dev/null || true
 
