@@ -162,8 +162,10 @@ build_compose_command() {
     
     # Add base compose file
     cmd="${cmd} -f ${BASE_COMPOSE_FILE}"
+    # Always include logging profile by default (Loki/Promtail)
+    cmd="${cmd} --profile logging"
     
-    # Add production overlay if not base-only
+    # Add production overlay if not base-only and profiles specified
     if [[ ${BASE_ONLY} == false && ${#PROFILES[@]} -gt 0 ]]; then
         cmd="${cmd} -f ${PROD_COMPOSE_FILE}"
         

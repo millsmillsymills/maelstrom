@@ -455,8 +455,9 @@ services:
   mysql-exporter:
     image: prom/mysqld-exporter:latest
     container_name: mysql-exporter
-    environment:
-      - DATA_SOURCE_NAME=root:${ZABBIX_MYSQL_ROOT_PASSWORD}@tcp(zabbix-mysql:3306)/?parseTime=true
+    command:
+      - '--mysqld.address=zabbix-mysql:3306'
+      - '--config.my-cnf=/etc/mysql/.my.cnf'
     ports:
       - "127.0.0.1:9104:9104"
     restart: unless-stopped
@@ -466,6 +467,8 @@ services:
     read_only: false
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=50m
+    volumes:
+      - /home/mills/secrets/mysql_exporter_my_cnf:/etc/mysql/.my.cnf:ro
     logging: *default-logging
     deploy:
       resources:
