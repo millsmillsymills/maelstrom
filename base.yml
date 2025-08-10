@@ -106,8 +106,8 @@ services:
       - "127.0.0.1:9090:9090"
     restart: unless-stopped
     healthcheck:
-      # Test: Check if Prometheus API responds and is ready
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/ready"]
+      # Treat 200 (ready) or 401 (auth enforced) as healthy
+      test: ["CMD-SHELL", "wget -S --spider -O - http://localhost:9090/-/ready 2>&1 | grep -qE 'HTTP/1\\.[01] (200|401)'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -381,6 +381,7 @@ services:
     image: prom/blackbox-exporter:latest
     container_name: blackbox-exporter
     profiles: [networking]
+    command: ["--config.file=/etc/blackbox_exporter/blackbox.yml"]
     ports:
       - "127.0.0.1:9115:9115"
     volumes:

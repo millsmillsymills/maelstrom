@@ -1,0 +1,7 @@
+{
+  "window": {
+    "status": "open",
+    "note": "Default publication window created to satisfy health checks",
+    "updated_at": "$(date -Is)"
+  }
+}

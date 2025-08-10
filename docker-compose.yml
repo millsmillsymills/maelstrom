@@ -1620,7 +1620,7 @@ services:
       - no-new-privileges:true
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      test: ["CMD-SHELL", "python - <<'PY'\nimport sys, urllib.request\ntry:\n    with urllib.request.urlopen('http://localhost:5002/health', timeout=3) as r:\n        sys.exit(0 if r.status==200 else 1)\nexcept Exception:\n    sys.exit(1)\nPY"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1657,7 +1657,7 @@ services:
       - no-new-privileges:true
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
+      test: ["CMD-SHELL", "python - <<'PY'\nimport sys, urllib.request\ntry:\n    with urllib.request.urlopen('http://localhost:5003/health', timeout=3) as r:\n        sys.exit(0 if r.status==200 else 1)\nexcept Exception:\n    sys.exit(1)\nPY"]
       interval: 30s
       timeout: 10s
       retries: 3
