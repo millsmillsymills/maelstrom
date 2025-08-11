@@ -27,6 +27,20 @@ jobs:
         run: |
           chmod +x scripts/ops/health_sanity.sh || true
           ./scripts/ops/health_sanity.sh || true
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Prometheus Optional Check" >> $GITHUB_STEP_SUMMARY
+          echo "(Resurgent target up% printed when available)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Verify backups (read-only)
+        shell: bash
+        run: |
+          if [ -x scripts/backups/verify_backups.sh ]; then
+            echo "::group::Backup verification (read-only)"
+            scripts/backups/verify_backups.sh --base-dir /home/mills/backup/maelstrom --max-age-days 7 || true
+            echo "::endgroup::"
+          else
+            echo "verify_backups.sh not present; skipping"
+          fi
 
       - name: Emit endpoints reference
         shell: bash
@@ -34,4 +48,3 @@ jobs:
           echo "# Readiness Endpoints" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           sed -n '1,200p' docs/ops/health_check_endpoints.md >> $GITHUB_STEP_SUMMARY
-

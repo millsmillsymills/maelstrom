@@ -11,10 +11,14 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 <!-- STATUS-BEGIN -->
 | Key Metric       | Value             |
 |------------------|------------------|
-| Stack Health     | 🟢 Healthy |
+| Stack Health     | 🟡 Degraded |
 | Critical Alerts  | ✅ None |
-| Failing Services | 0 |
-| Last Check       | 2025-08-09 21:39 UTC |
+| Failing Services | 2 |
+| Last Check       | 2025-08-11 01:26 UTC |
+
+**Failing Services:**
+- trivy (restarting)
+- vault (unhealthy)
 <!-- STATUS-END -->
 
 ## Backups Scope
@@ -92,6 +96,9 @@ cd maelstrom
 
 # Security scan
 ./validate_stack.sh --security-only
+
+# Lightweight, non-destructive sanity
+./scripts/ops/health_sanity.sh
 ```
 
 ## 📊 Service Access Points
@@ -102,6 +109,7 @@ cd maelstrom
 - Config collections: `collections/` (service configs; data dirs use `*-data`).
 - Tests: `tests/unit`, `tests/integration` with pytest markers.
 - Docs: `docs/` (guides, architecture). Contributor info: `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`.
+  - Ops: `docs/ops/health_check_endpoints.md`, `docs/ops/prometheus_rules_layout.md`, `docs/ops/backups.md`.
 - Backups & logs: `backups/`, `logs/`, soft-deletes in `trash/`.
 
 ### Core Dashboards

@@ -32,6 +32,19 @@ Loki:           GET http://localhost:3100/ready
 EOF
 echo "::endgroup::"
 
+echo "::group::Prometheus (optional)"
+PROM_URL="${PROM_URL:-http://localhost:9090}"
+if curl -sf "$PROM_URL/-/ready" >/dev/null 2>&1; then
+  echo "Prometheus ready"
+  # Resurgent targets up% (if any); non-blocking
+  Q='sum(up{job=~"resurgent_(node|cadvisor)"}) by (job)'
+  echo "Query: $Q"
+  curl -sf --get --data-urlencode "query=$Q" "$PROM_URL/api/v1/query" | jq -r '.data.result[]? | "\(.metric.job)=\(.value[1])"' || true
+else
+  echo "Prometheus not reachable; skipping queries"
+fi
+echo "::endgroup::"
+
 echo "::group::Script presence"
 for f in \
   "$root_dir/validate_stack.sh" \
@@ -52,4 +65,3 @@ fi
 echo "::endgroup::"
 
 echo "Health sanity complete"
-
