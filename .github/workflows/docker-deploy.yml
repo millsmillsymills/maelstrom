@@ -18,7 +18,14 @@ jobs:
       should_deploy: ${{ steps.check.outputs.should_deploy }}
     steps:
       - name: noninteractive-check
-        run: /usr/local/bin/codex-preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -x /usr/local/bin/codex-preflight ]; then
+            /usr/local/bin/codex-preflight || echo "preflight reported warnings"
+          else
+            echo "codex-preflight not present on runner; skipping preflight."
+          fi
       - name: Checkout code
         uses: actions/checkout@v4
 

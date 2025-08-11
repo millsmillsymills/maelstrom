@@ -13,14 +13,21 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJ_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # Resolve token non-interactively via central provider
 TOKEN_PROVIDER="${PROJ_ROOT}/internal/github_auth/token_provider.sh"
-if [[ ! -x "$TOKEN_PROVIDER" ]]; then
-  echo "token_provider.sh not found; expected at internal/github_auth/token_provider.sh" >&2
-  exit 1
+AUTH_HEADER=""
+if [[ -x "$TOKEN_PROVIDER" ]]; then
+  if header="$($TOKEN_PROVIDER --print-header 2>/dev/null)"; then
+    AUTH_HEADER="$header"
+  fi
 fi
 
-AUTH_HEADER="$($TOKEN_PROVIDER --print-header)"
-curl -sS \
-  -H "$AUTH_HEADER" \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  "$@"
+# Build curl args allowing unauthenticated fallback when no token is available
+args=(
+  -sS
+  -H "Accept: application/vnd.github+json"
+  -H "X-GitHub-Api-Version: 2022-11-28"
+)
+if [[ -n "$AUTH_HEADER" ]]; then
+  args+=( -H "$AUTH_HEADER" )
+fi
+
+curl "${args[@]}" "$@"

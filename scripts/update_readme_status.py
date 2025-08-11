@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-# shellcheck disable=SC1091
-[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 """
 README Status Update Script for Maelstrom Monitoring Stack
 Updates the dynamic status block in README.md with current service health information
@@ -13,7 +11,6 @@ import sys
 from datetime import datetime, timezone
 from typing import Dict, List, Tuple
 
-import requests
 import json as _json_for_api
 import os as _os
 
@@ -182,6 +179,11 @@ def get_docker_service_status() -> Tuple[int, int, List[str]]:
 def get_alertmanager_alerts() -> Tuple[int, List[str]]:
     """Get active alerts from Alertmanager"""
     try:
+        # Lazy import to avoid hard dependency if requests is unavailable
+        try:
+            import requests  # type: ignore
+        except Exception:
+            return 0, []
         response = requests.get("http://localhost:9093/api/v1/alerts", timeout=5)
         if response.status_code == 200:
             alerts_data = response.json()

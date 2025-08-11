@@ -45,7 +45,7 @@ jobs:
         run: |
           if ! docker compose version >/dev/null 2>&1; then
             sudo apt-get update -y
-            sudo apt-get install -y ${DOCKER} compose-plugin
+            sudo apt-get install -y docker-compose-plugin
           fi
           docker compose -f base.yml config --quiet
           docker compose -f base.yml -f prod.yml config --quiet
