@@ -18,7 +18,7 @@ services:
     image: influxdb:1.8
     container_name: influxdb
     ports:
-      - "127.0.0.1:8086:8086"
+      - "0.0.0.0:8086:8086"
     volumes:
       - /home/mills/collections/influxdb:/var/lib/influxdb
     environment:
@@ -55,7 +55,7 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     ports:
-      - "127.0.0.1:3000:3000"
+      - "0.0.0.0:3000:3000"
     volumes:
       - /home/mills/collections/grafana:/var/lib/grafana
     environment:
@@ -146,7 +146,7 @@ services:
       - '--storage.tsdb.wal-compression'
       - '--web.config.file=/etc/prometheus/web.yml'
     ports:
-      - "127.0.0.1:9090:9090"
+      - "0.0.0.0:9090:9090"
     restart: unless-stopped
     healthcheck:
       # Test: Check if Prometheus API responds and is ready to serve queries
@@ -423,7 +423,7 @@ services:
     image: prom/node-exporter:latest
     container_name: node-exporter
     ports:
-      - "127.0.0.1:9100:9100"
+      - "0.0.0.0:9100:9100"
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -459,7 +459,7 @@ services:
       - '--mysqld.address=zabbix-mysql:3306'
       - '--config.my-cnf=/etc/mysql/.my.cnf'
     ports:
-      - "127.0.0.1:9104:9104"
+      - "0.0.0.0:9104:9104"
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -513,7 +513,7 @@ services:
     image: prom/alertmanager:latest
     container_name: alertmanager
     ports:
-      - "127.0.0.1:9093:9093"
+      - "0.0.0.0:9093:9093"
     volumes:
       - /home/mills/collections/alertmanager:/etc/alertmanager:ro
       - alertmanager_data:/alertmanager
@@ -1501,7 +1501,7 @@ services:
     image: hashicorp/vault:latest
     container_name: vault
     ports:
-      - "127.0.0.1:8200:8200"
+      - "0.0.0.0:8200:8200"
     volumes:
       - /home/mills/collections/vault/vault-config.hcl:/vault/config/vault.hcl:ro
       - vault_data:/vault/data
@@ -1574,7 +1574,7 @@ services:
       dockerfile: Dockerfile
     container_name: maelstrom-api
     ports:
-      - "127.0.0.1:8000:8000"
+      - "0.0.0.0:8000:8000"
     environment:
       - RESURGENT_IP=${RESURGENT_IP}
       - API_USERNAME=maelstrom_admin
@@ -1608,7 +1608,7 @@ services:
     working_dir: /app
     command: bash -c "pip install -r requirements.txt && python autoops_service.py"
     ports:
-      - "127.0.0.1:5002:5002"
+      - "0.0.0.0:5002:5002"
     volumes:
       - /home/mills/collections/autoops:/app
     environment:
@@ -1655,7 +1655,7 @@ services:
     working_dir: /app
     command: bash -c "pip install -r requirements.txt && python threat_orchestrator.py"
     ports:
-      - "127.0.0.1:5003:5003"
+      - "0.0.0.0:5003:5003"
     volumes:
       - /home/mills/collections/threat-orchestrator:/app
     environment:

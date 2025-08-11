@@ -6,6 +6,17 @@ set -euo pipefail
 # - Verifies presence of key scripts (no execution of backups)
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ts=$(date +%Y%m%d_%H%M%S)
+out_dir="$root_dir/output"
+out_md="$out_dir/health_sanity_${ts}.md"
+mkdir -p "$out_dir"
+
+{
+  echo "# Health Sanity"
+  echo
+  echo "Generated: $(date -Is)"
+  echo
+} >"$out_md"
 
 echo "::group::Compose config validation"
 if command -v docker >/dev/null 2>&1; then
@@ -22,6 +33,12 @@ else
 fi
 echo "::endgroup::"
 
+{
+  echo "## Compose"
+  echo "- base.yml: $( [ -f "$root_dir/base.yml" ] && echo present || echo missing )"
+  echo "- prod.yml: $( [ -f "$root_dir/prod.yml" ] && echo present || echo missing )"
+} >>"$out_md"
+
 echo "::group::Readiness endpoints (reference)"
 cat << 'EOF'
 Prometheus:     GET http://localhost:9090/-/ready
@@ -31,6 +48,16 @@ InfluxDB 1.8:   GET http://localhost:8086/ping
 Loki:           GET http://localhost:3100/ready
 EOF
 echo "::endgroup::"
+
+{
+  echo
+  echo "## Readiness Endpoints"
+  echo "- Prometheus: http://localhost:9090/-/ready"
+  echo "- Grafana:    http://localhost:3000/api/health"
+  echo "- Alertmgr:   http://localhost:9093/-/ready"
+  echo "- InfluxDB:   http://localhost:8086/ping"
+  echo "- Loki:       http://localhost:3100/ready"
+} >>"$out_md"
 
 echo "::group::Prometheus (optional)"
 PROM_URL="${PROM_URL:-http://localhost:9090}"
@@ -44,6 +71,21 @@ else
   echo "Prometheus not reachable; skipping queries"
 fi
 echo "::endgroup::"
+
+{
+  echo
+  echo "## Prometheus (Optional)"
+  if curl -sf "$PROM_URL/-/ready" >/dev/null 2>&1; then
+    echo "Prometheus ready"
+    Q='sum(up{job=~"resurgent_(node|cadvisor)"}) by (job)'
+    echo "Query: $Q"
+    curl -sf --get --data-urlencode "query=$Q" "$PROM_URL/api/v1/query" | jq -r '.data.result[]? | "- \(.metric.job)=\(.value[1])"' || true
+  else
+    echo "Prometheus not reachable"
+  fi
+} >>"$out_md"
+
+echo "Wrote $out_md"
 
 echo "::group::Script presence"
 for f in \

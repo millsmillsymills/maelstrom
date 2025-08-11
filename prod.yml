@@ -138,7 +138,7 @@ services:
     volumes:
       - wazuh_elastic_data:/usr/share/elasticsearch/data
     ports:
-      - "127.0.0.1:9200:9200"
+      - "0.0.0.0:9200:9200"
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
