@@ -130,8 +130,10 @@ jobs:
           # Scope scanning to repo (exclude backups/dev caches) and do not fail build
           TRIVY_COMMON_ARGS='--skip-dirs backups,.nvm,resurgent,output,trash,logs,collections/victoriametrics-data,collections/minio-data'
           if command -v trivy >/dev/null 2>&1; then
-            trivy config . $TRIVY_COMMON_ARGS --severity HIGH,CRITICAL --format sarif --output trivy-results.sarif --exit-code 0
-            trivy config . $TRIVY_COMMON_ARGS --severity HIGH,CRITICAL --format table --exit-code 0
+            IGNORE=""
+            if [ -f .trivyignore ]; then IGNORE="--ignorefile .trivyignore"; fi
+            trivy config . $TRIVY_COMMON_ARGS --severity HIGH,CRITICAL --format sarif --output trivy-results.sarif --exit-code 0 $IGNORE
+            trivy config . $TRIVY_COMMON_ARGS --severity HIGH,CRITICAL --format table --exit-code 0 $IGNORE
           else
             echo "⚠️ Trivy not available; skipping scan"
           fi
