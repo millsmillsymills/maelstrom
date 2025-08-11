@@ -1,0 +1,27 @@
+name: Nightly Share Scan
+
+on:
+  schedule:
+    - cron: '11 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  share-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run share scan (read-only)
+        shell: bash
+        run: |
+          chmod +x scripts/ops/share_scan.sh || true
+          ./scripts/ops/share_scan.sh || true
+
+      - name: Upload scan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: share-scan-md
+          path: output/share_scan_*.md
+          if-no-files-found: warn
+
