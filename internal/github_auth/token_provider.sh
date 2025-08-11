@@ -13,6 +13,23 @@ set -euo pipefail
 GITHUB_API_BASE="${GITHUB_API_BASE:-https://api.github.com}"
 CACHE_FILE="${HOME}/.cache/github_token.json"
 
+# Opportunistically load .env for relevant GitHub variables
+_load_env_if_present() {
+  local env_file=".env"
+  [ -f "$env_file" ] || return 0
+  # Only parse expected names; strip quotes
+  local names=(GITHUB_PAT GITHUB_TOKEN GITHUB_OAUTH_CLIENT_ID GITHUB_OAUTH_CLIENT_SECRET GITHUB_OAUTH_REFRESH_TOKEN)
+  for _name in "${names[@]}"; do
+    local _val
+    _val=$(sed -n -e "s/^[[:space:]]*${_name}[[:space:]]*=[[:space:]]*//p" "$env_file" | tail -n1 | tr -d '\r') || true
+    # strip surrounding quotes
+    _val="${_val%\"}"; _val="${_val#\"}"; _val="${_val%\'}"; _val="${_val#\'}"
+    if [[ -n "${_val}" ]]; then export "${_name}=${_val}"; fi
+  done
+}
+
+_load_env_if_present
+
 _now() { date +%s; }
 
 _read_cache() {
