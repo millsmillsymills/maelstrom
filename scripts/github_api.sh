@@ -20,7 +20,7 @@ if [[ -x "$TOKEN_PROVIDER" ]]; then
   fi
 fi
 
-# Build curl args allowing unauthenticated fallback when no token is available
+# Build curl args allowing unauthenticated fallback for READS; require auth for WRITES
 args=(
   -sS
   -H "Accept: application/vnd.github+json"
@@ -28,6 +28,27 @@ args=(
 )
 if [[ -n "$AUTH_HEADER" ]]; then
   args+=( -H "$AUTH_HEADER" )
+fi
+
+# If this looks like a write call and we lack auth, fail fast with guidance
+if [[ -z "$AUTH_HEADER" ]]; then
+  # naive method detection from args; default is GET
+  method="GET"
+  for i in "$@"; do
+    if [[ "$i" == "-X" ]]; then
+      method="SET" # next item will hold method name
+      continue
+    fi
+    if [[ "$method" == "SET" ]]; then
+      method="$i"; break
+    fi
+  done
+  case "$method" in
+    POST|PATCH|PUT|DELETE)
+      echo "error: authentication required for GitHub API $method but no token is available (set GITHUB_TOKEN/GITHUB_PAT or OAuth vars in .env)" >&2
+      exit 1
+      ;;
+  esac
 fi
 
 curl "${args[@]}" "$@"
