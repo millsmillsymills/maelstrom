@@ -17,6 +17,15 @@ jobs:
     outputs:
       should_deploy: ${{ steps.check.outputs.should_deploy }}
     steps:
+      - name: noninteractive-check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -x /usr/local/bin/codex-preflight ]; then
+            /usr/local/bin/codex-preflight || echo "preflight reported warnings"
+          else
+            echo "codex-preflight not present on runner; skipping preflight."
+          fi
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -79,10 +88,17 @@ jobs:
           ssh -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" << 'ENDSSH'
           set -euo pipefail
 
-        echo "🚀 Starting Maelstrom deployment..."
+          echo "🚀 Starting Maelstrom deployment..."
 
-        # Navigate to project directory
-        cd /home/mills || { echo "❌ Project directory not found"; exit 1; }
+          # Navigate to project directory
+          cd /home/mills || { echo "❌ Project directory not found"; exit 1; }
+
+          # Ensure non-interactive env is ready
+          if command -v codex-preflight >/dev/null 2>&1; then
+            if ! codex-preflight; then
+              echo "⚠️ Preflight warnings detected; continuing"
+            fi
+          fi
 
         # Pull latest changes
         echo "📥 Pulling latest changes..."

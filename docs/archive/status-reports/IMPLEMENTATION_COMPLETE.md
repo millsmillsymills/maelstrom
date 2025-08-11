@@ -195,7 +195,7 @@ The comprehensive infrastructure enhancement project has been **successfully com
 └── run_analysis.sh                            # Analysis execution wrapper
 
 /home/mills/
-├── docker-compose-enhanced-production.yml      # Enhanced Docker Compose
+├── ${DOCKER} compose-enhanced-production.yml      # Enhanced Docker Compose
 ├── comprehensive-enhancement-deployment.sh     # Deployment automation
 ├── final-enhancement-validation.sh            # Validation framework
 └── IMPLEMENTATION_COMPLETE.md                 # This completion report
@@ -245,7 +245,7 @@ The comprehensive infrastructure enhancement project has been **successfully com
 - [x] Comprehensive documentation and runbooks completed
 
 ### Next Steps for Production
-1. **Deploy Enhanced Stack**: Use `docker-compose-enhanced-production.yml`
+1. **Deploy Enhanced Stack**: Use `${DOCKER} compose-enhanced-production.yml`
 2. **Apply Security Rules**: Execute `/home/mills/collections/network-security/firewall-rules.sh`
 3. **Load Credentials**: Source `/home/mills/output/20250628T040002Z/rotated_secrets.env`
 4. **Validate Health**: Run `/home/mills/collections/health-monitor/health_check.sh`

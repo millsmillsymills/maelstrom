@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Image vulnerability scanning script using Trivy
 # Scans all container images in docker-compose.yml for HIGH and CRITICAL vulnerabilities
 # Returns non-zero exit code if vulnerabilities are found
@@ -20,6 +22,7 @@ REPORT_FILE="${REPORT_DIR}/vulnerability_scan_$(date +%Y%m%d_%H%M%S).json"
 
 # Logging functions
 log() {
+    # log to stdout
     echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"
 }
 
@@ -47,7 +50,8 @@ check_trivy() {
 
 # Extract images from docker-compose.yml
 extract_images() {
-    log "Extracting images from ${COMPOSE_FILE}"
+    # write the info to stderr to avoid polluting stdout (which is consumed)
+    echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} Extracting images from ${COMPOSE_FILE}" 1>&2
     
     if [[ ! -f "${COMPOSE_FILE}" ]]; then
         error "Docker Compose file not found: ${COMPOSE_FILE}"
@@ -126,8 +130,9 @@ scan_all_images() {
     
     log "Found ${#images[@]} unique images to scan"
     
-    # Initialize JSON report
-    echo '{"scan_date":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","images":[' > "${REPORT_FILE}"
+    # Initialize JSON report (start clean)
+    : > "${REPORT_FILE}"
+    echo '{"scan_date":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","images":[' >> "${REPORT_FILE}"
     local first_image=true
     
     # Scan each image
@@ -147,7 +152,12 @@ scan_all_images() {
         local temp_report
         temp_report=$(mktemp)
         
-        if trivy image --format json --severity HIGH,CRITICAL "${image}" > "${temp_report}" 2>/dev/null; then
+        # Optional ignore file
+        IGN_ARG=()
+        if [[ -f "${SCRIPT_DIR}/../.trivyignore" ]]; then
+          IGN_ARG=(--ignorefile "${SCRIPT_DIR}/../.trivyignore")
+        fi
+        if trivy image --format json --severity HIGH,CRITICAL "${image}" "${IGN_ARG[@]}" > "${temp_report}" 2>/dev/null; then
             # Add image scan result to report
             echo -n '{"image":"'${image}'","result":' >> "${REPORT_FILE}"
             cat "${temp_report}" >> "${REPORT_FILE}"

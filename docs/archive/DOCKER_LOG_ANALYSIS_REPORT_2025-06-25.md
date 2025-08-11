@@ -228,7 +228,7 @@ error: subprocess-exited-with-error
    docker exec influxdb influx -execute "SHOW USERS"
    
    # Reset credentials if needed
-   docker-compose restart telegraf unpoller plex-data-collector
+   ${DOCKER} compose restart telegraf unpoller plex-data-collector
    ```
 
 2. **Repair Grafana Database Permissions**
@@ -238,7 +238,7 @@ error: subprocess-exited-with-error
    sudo chmod -R 755 /home/mills/collections/grafana/
    
    # Restart service
-   docker-compose restart grafana
+   ${DOCKER} compose restart grafana
    ```
 
 3. **Configure Wazuh Certificates**
@@ -247,7 +247,7 @@ error: subprocess-exited-with-error
    docker exec wazuh-manager /var/ossec/bin/wazuh-certs-tool.sh
    
    # Restart Wazuh stack
-   docker-compose restart wazuh-manager wazuh-dashboard
+   ${DOCKER} compose restart wazuh-manager wazuh-dashboard
    ```
 
 ### Phase 2: Service Configuration (2-4 hours)

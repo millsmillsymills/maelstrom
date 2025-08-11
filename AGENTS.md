@@ -13,7 +13,7 @@
 - Enable overlays via profiles: `./deploy_stack.sh security-stack wazuh-stack`.
 - Dry run all profiles: `./deploy_stack.sh --dry-run --all-profiles`.
 - Validate quickly/by area: `./validate_stack.sh --quick` (or `--health-checks-only`, `--security-only`, `--backups-only`).
-- Compose sanity check: `docker-compose -f base.yml config --quiet`.
+- Compose sanity check: `${DOCKER} compose -f base.yml config --quiet`.
 - Run tests: `pytest -q`, or focused with `pytest -m unit` / `pytest -m integration`.
 - Lint/format pre-commit: `pre-commit run -a` before committing.
 
@@ -29,11 +29,10 @@
 
 ## Commit & Pull Request Guidelines
 - Commits: short, imperative subject + why/what; link issues. Example: `🚀 Deploy profiles: security-stack, wazuh-stack`.
-- PRs: clear summary; repro/validation steps (commands run). Include `docker-compose -f base.yml config --quiet` output when relevant. Add dashboards/screenshots; note active profiles used (e.g., `security-stack wazuh-stack`).
+- PRs: clear summary; repro/validation steps (commands run). Include `${DOCKER} compose -f base.yml config --quiet` output when relevant. Add dashboards/screenshots; note active profiles used (e.g., `security-stack wazuh-stack`).
 
 ## Security & Configuration Tips
 - Never commit secrets. Use `secrets/` (0600) and `.env.template`; keep real `.env` local.
 - Scan images: `scripts/scan_images.sh`; run `./validate_stack.sh --security-only` before merge.
 - Backups: `scripts/backups/backup_influxdb.sh` and `scripts/backups/backup_volume.sh` (support `--dry-run`); rotate with `scripts/backups/rotate_backups.sh`.
 - MySQL Exporter: create `secrets/mysql_exporter_my_cnf`; mount `/etc/mysql/.my.cnf:ro`; run exporter with `--config.my-cnf`.
-

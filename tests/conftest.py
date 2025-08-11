@@ -1,14 +1,24 @@
-"""Shared pytest fixtures for integration tests.
+"""Shared pytest configuration and fixtures.
 
-These fixtures attempt to connect to local services. If unavailable, they
-skip the tests that depend on them, allowing CI to pass without live stack.
+Ensures the project root is importable so tests can import modules like
+`internal.github_auth.token_provider` reliably regardless of pytest's
+working directory. Also provides integration-oriented fixtures which
+gracefully skip when dependent services are unavailable.
 """
 
 import os
+import sys
+import pathlib
 from typing import Any, Dict
 
 import pytest
 import requests
+
+# Ensure project root is on sys.path for imports like `internal.*`
+# This makes collection robust even when pytest changes CWD to the tests dir.
+ROOT = pathlib.Path(__file__).resolve().parents[1].resolve()
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 @pytest.fixture
@@ -90,4 +100,3 @@ def secrets_helper():
         pytest.skip("Slack webhook not configured for integration tests")
 
     return module
-

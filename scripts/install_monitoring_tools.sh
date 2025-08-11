@@ -1,6 +1,8 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Monitoring Analysis Tools Installation Script
-# Run with: sudo ./install_monitoring_tools.sh
+# Run with: ${SUDO} ./install_monitoring_tools.sh
 
 set -e
 

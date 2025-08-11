@@ -3,6 +3,8 @@
 # Supports both base configuration and heavy services via profiles
 
 set -euo pipefail
+# Standard non-interactive env
+source /usr/local/lib/codex_env.sh 2>/dev/null || true
 
 # Colors for output
 RED='\033[0;31m'
@@ -142,9 +144,9 @@ fi
 
 # Choose Compose binary (prefer v2 plugin)
 get_compose_bin() {
-    if docker compose version >/dev/null 2>&1; then
-        echo "docker compose"
-    elif command -v docker-compose >/dev/null 2>&1; then
+    if ${DOCKER} compose version >/dev/null 2>&1; then
+        echo "${DOCKER} compose"
+    elif command -v ${DOCKER} compose >/dev/null 2>&1; then
         echo "docker-compose"
     else
         error "Docker Compose is not installed (neither plugin nor v1)"
@@ -160,8 +162,10 @@ build_compose_command() {
     
     # Add base compose file
     cmd="${cmd} -f ${BASE_COMPOSE_FILE}"
+    # Always include logging profile by default (Loki/Promtail)
+    cmd="${cmd} --profile logging"
     
-    # Add production overlay if not base-only
+    # Add production overlay if not base-only and profiles specified
     if [[ ${BASE_ONLY} == false && ${#PROFILES[@]} -gt 0 ]]; then
         cmd="${cmd} -f ${PROD_COMPOSE_FILE}"
         
@@ -207,16 +211,14 @@ validate_configuration() {
 
 # Check Docker daemon status
 check_docker() {
-    if ! command -v docker &> /dev/null; then
+    if ! command -v ${DOCKER} &> /dev/null; then
         error "Docker is not available"
         exit 1
     fi
-    
-    if ! docker info &> /dev/null; then
+    if ! ${DOCKER} info &> /dev/null; then
         error "Docker daemon is not running"
         exit 1
     fi
-    
     success "Docker daemon is available"
 }
 

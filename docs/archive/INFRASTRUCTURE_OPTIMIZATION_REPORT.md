@@ -94,10 +94,10 @@ Network Performance:
 #### 1.3 Service Startup Sequence
 ```bash
 # Recommended startup order:
-docker-compose up -d influxdb grafana
-docker-compose up -d prometheus unpoller telegraf
-docker-compose up -d mysql-exporter node-exporter cadvisor
-docker-compose up -d alertmanager blackbox-exporter snmp-exporter
+${DOCKER} compose up -d influxdb grafana
+${DOCKER} compose up -d prometheus unpoller telegraf
+${DOCKER} compose up -d mysql-exporter node-exporter cadvisor
+${DOCKER} compose up -d alertmanager blackbox-exporter snmp-exporter
 ```
 
 ### **Phase 2: Security Services Restoration (Priority: HIGH)**
@@ -117,9 +117,9 @@ output.elasticsearch:
 #### 2.2 Network Security Services Deployment
 ```bash
 # Start security monitoring stack:
-docker-compose up -d wazuh-elasticsearch wazuh-manager wazuh-dashboard
-docker-compose up -d suricata zeek 
-docker-compose up -d security-monitor threat-intelligence
+${DOCKER} compose up -d wazuh-elasticsearch wazuh-manager wazuh-dashboard
+${DOCKER} compose up -d suricata zeek 
+${DOCKER} compose up -d security-monitor threat-intelligence
 ```
 
 #### 2.3 SNMP Access Configuration
@@ -220,18 +220,18 @@ networks:
 ## Risk Assessment & Mitigation
 
 ### **High-Risk Dependencies**
-1. **External Container Conflicts**: Recommend consolidating all monitoring services into single docker-compose stack
+1. **External Container Conflicts**: Recommend consolidating all monitoring services into single ${DOCKER} compose stack
 2. **InfluxDB Memory Pressure**: Implement retention policies and query optimization
 3. **Network Device Access**: SNMP enablement may require firewall rule updates
 
 ### **Rollback Strategy**
 ```bash
 # Maintain backup of current working state:
-docker-compose ps > /home/mills/working_state_backup.txt
+${DOCKER} compose ps > /home/mills/working_state_backup.txt
 docker network inspect mills_monitoring > /home/mills/network_backup.json
 
 # Quick rollback command:
-docker-compose down && docker-compose up -d influxdb grafana plex-data-collector
+${DOCKER} compose down && ${DOCKER} compose up -d influxdb grafana plex-data-collector
 ```
 
 ## Implementation Timeline
@@ -253,8 +253,8 @@ curl -s http://localhost:3000/api/health | jq '.database'                       
 curl -s http://localhost:8086/health | jq '.status'                             # InfluxDB health
 
 # Data pipeline validation:
-docker-compose logs --tail=10 ml-analytics | grep -v "No data found"            # ML Analytics data flow
-docker-compose logs --tail=10 wazuh-manager | grep -v "ERROR"                   # Wazuh connectivity
+${DOCKER} compose logs --tail=10 ml-analytics | grep -v "No data found"            # ML Analytics data flow
+${DOCKER} compose logs --tail=10 wazuh-manager | grep -v "ERROR"                   # Wazuh connectivity
 ```
 
 ### **Performance Benchmarks**

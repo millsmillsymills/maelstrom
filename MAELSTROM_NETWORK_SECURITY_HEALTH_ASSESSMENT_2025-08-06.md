@@ -92,8 +92,8 @@ The Maelstrom monitoring infrastructure is experiencing **CRITICAL ISSUES** requ
 - But integration with Wazuh components failing
 
 #### Network-Based Security Monitoring ❓ STATUS UNKNOWN
-**Suricata IDS/IPS:** Not present in current docker-compose configuration
-**Zeek Network Analysis:** Not present in current docker-compose configuration  
+**Suricata IDS/IPS:** Not present in current ${DOCKER} compose configuration
+**Zeek Network Analysis:** Not present in current ${DOCKER} compose configuration  
 **Impact:** No active network intrusion detection or deep packet inspection
 
 #### Traffic Analysis - ntopng ✅ OPERATIONAL

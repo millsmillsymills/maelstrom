@@ -1,7 +1,7 @@
 services:
   # ML Analytics Stack Profile
   ml-analytics:
-    image: python:3.11-slim
+    image: python:${PYTHON_BASE_TAG:-3.11-slim}
     container_name: ml-analytics
     profiles:
       - ml-analytics
@@ -35,7 +35,7 @@ services:
         ipv4_address: 172.30.0.24
 
   data-optimizer:
-    image: python:3.11-slim
+    image: python:${PYTHON_BASE_TAG:-3.11-slim}
     container_name: data-optimizer
     profiles:
       - ml-analytics
@@ -75,7 +75,7 @@ services:
       - prometheus
 
   resource-optimizer:
-    image: python:3.11-slim
+    image: python:${PYTHON_BASE_TAG:-3.11-slim}
     container_name: resource-optimizer
     profiles:
       - ml-analytics
@@ -255,7 +255,7 @@ services:
 
   # Security Stack Profile
   suricata:
-    image: jasonish/suricata:latest
+    image: jasonish/suricata:${SURICATA_TAG:-latest}
     container_name: suricata
     profiles:
       - security-stack
@@ -287,7 +287,7 @@ services:
       - wazuh-manager
 
   zeek:
-    image: zeek/zeek:latest
+    image: zeek/zeek:${ZEEK_TAG:-latest}
     container_name: zeek
     profiles:
       - security-stack
@@ -320,7 +320,7 @@ services:
       - wazuh-manager
 
   ntopng:
-    image: ntop/ntopng:latest
+    image: ntop/ntopng:${NTOPNG_TAG:-latest}
     container_name: ntopng
     profiles:
       - security-stack
@@ -360,7 +360,7 @@ services:
           memory: 256M
 
   security-monitor:
-    image: python:3.11-slim
+    image: python:${PYTHON_BASE_TAG:-3.11-slim}
     container_name: security-monitor
     profiles:
       - security-stack
@@ -402,7 +402,7 @@ services:
         ipv4_address: 172.30.0.23
 
   threat-intelligence:
-    image: python:3.11-slim
+    image: python:${PYTHON_BASE_TAG:-3.11-slim}
     container_name: threat-intelligence
     profiles:
       - security-stack
@@ -440,7 +440,7 @@ services:
       - slack-notifier
 
   geopolitical-threat-detector:
-    image: python:3.11-slim
+    image: python:${PYTHON_BASE_TAG:-3.11-slim}
     container_name: geopolitical-threat-detector
     profiles:
       - security-stack
@@ -477,7 +477,7 @@ services:
       - threat-intelligence
 
   threat-response:
-    image: python:3.11-slim
+    image: python:${PYTHON_BASE_TAG:-3.11-slim}
     container_name: threat-response
     profiles:
       - security-stack
@@ -516,7 +516,7 @@ services:
 
   # Analytics Stack Profile
   jaeger:
-    image: jaegertracing/all-in-one:latest
+    image: jaegertracing/all-in-one:${JAEGER_TAG:-latest}
     container_name: jaeger
     profiles:
       - analytics-stack
@@ -549,7 +549,7 @@ services:
         ipv4_address: 172.30.0.31
 
   self-healing:
-    image: python:3.11-slim
+    image: python:${PYTHON_BASE_TAG:-3.11-slim}
     container_name: self-healing
     profiles:
       - analytics-stack

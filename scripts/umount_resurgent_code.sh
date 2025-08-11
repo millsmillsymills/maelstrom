@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 set -euo pipefail
 
 usage() {
@@ -36,9 +38,9 @@ fi
 UMOUNT_CMD=(umount "$MOUNTPOINT")
 
 if [[ $EUID -ne 0 ]]; then
-  if command -v sudo >/dev/null 2>&1; then
+  if command -v ${SUDO} >/dev/null 2>&1; then
     echo "Unmounting with sudo: $MOUNTPOINT" >&2
-    sudo "${UMOUNT_CMD[@]}"
+    ${SUDO} "${UMOUNT_CMD[@]}"
   else
     echo "Root privileges required to unmount. Re-run with sudo." >&2
     exit 1
@@ -49,4 +51,3 @@ else
 fi
 
 echo "Unmounted $MOUNTPOINT" >&2
-

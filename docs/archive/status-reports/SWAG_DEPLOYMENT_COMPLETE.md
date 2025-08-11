@@ -179,7 +179,7 @@ curl -k https://localhost/health
 ### **Service Connection Issues**
 - **Problem**: 502 Bad Gateway errors
 - **Solution**: Ensure target services are running
-- **Check**: `docker-compose ps | grep -E "(grafana|prometheus|wazuh)"`
+- **Check**: `${DOCKER} compose ps | grep -E "(grafana|prometheus|wazuh)"`
 
 ---
 

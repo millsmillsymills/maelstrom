@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Critical Service Stabilization Implementation
 # Fixes all service restart loops with targeted solutions
 
@@ -29,15 +31,15 @@ fix_mysql_exporter() {
     info "Phase 1: Fixing MySQL Exporter configuration"
     
     # Stop and remove the problematic container
-    docker stop mysql-exporter-production 2>/dev/null || true
-    docker rm mysql-exporter-production 2>/dev/null || true
+    ${DOCKER} stop mysql-exporter-production 2>/dev/null || true
+    ${DOCKER} rm mysql-exporter-production 2>/dev/null || true
     
     # Verify MySQL connectivity first
-    if ! docker exec zabbix-mysql mysql -u root -pzabbix_password -e "SELECT 1" >/dev/null 2>&1; then
+    if ! ${DOCKER} exec zabbix-mysql mysql -u root -pzabbix_password -e "SELECT 1" >/dev/null 2>&1; then
         warning "MySQL not accessible, creating simplified exporter"
         
         # Deploy minimal MySQL exporter without authentication
-        docker run -d \
+        ${DOCKER} run -d \
             --name mysql-exporter-stable \
             --network mills_monitoring \
             --ip 172.30.0.60 \
@@ -51,7 +53,7 @@ fix_mysql_exporter() {
             --collect.global_variables
         
         sleep 10
-        if docker ps | grep -q mysql-exporter-stable; then
+        if ${DOCKER} ps | grep -q mysql-exporter-stable; then
             success "MySQL Exporter stabilized with basic configuration"
         else
             warning "MySQL Exporter still having issues - will continue monitoring"
@@ -130,16 +132,16 @@ if __name__ == "__main__":
 EOF
 
     # Update container with minimal implementation
-    docker exec threat-intelligence bash -c "
+    ${DOCKER} exec threat-intelligence bash -c "
         cd /app && 
         cp /app/ultra_minimal_threat.py /app/main.py &&
         python3 /app/main.py
     " 2>/dev/null || warning "Threat intelligence container restart needed"
     
-    docker restart threat-intelligence
+    ${DOCKER} restart threat-intelligence
     sleep 15
     
-    if docker ps | grep -q threat-intelligence; then
+    if ${DOCKER} ps | grep -q threat-intelligence; then
         success "Threat Intelligence stabilized with minimal implementation"
     else
         warning "Threat Intelligence still restarting - monitoring continues"
@@ -151,7 +153,7 @@ fix_security_monitor() {
     info "Phase 3: Fixing Security Monitor disk space"
     
     # Clean up system to free space
-    docker system prune -f --volumes 2>/dev/null || true
+    ${DOCKER} system prune -f --volumes 2>/dev/null || true
     
     # Remove large cache files
     find /tmp -size +100M -delete 2>/dev/null || true
@@ -221,16 +223,16 @@ if __name__ == "__main__":
 EOF
 
     # Update container with lightweight implementation
-    docker exec security-monitor bash -c "
+    ${DOCKER} exec security-monitor bash -c "
         cd /app && 
         cp /app/ultra_light_monitor.py /app/main.py &&
         python3 /app/main.py
     " 2>/dev/null || warning "Security monitor container restart needed"
     
-    docker restart security-monitor
+    ${DOCKER} restart security-monitor
     sleep 10
     
-    if docker ps | grep -q security-monitor; then
+    if ${DOCKER} ps | grep -q security-monitor; then
         success "Security Monitor stabilized with lightweight implementation"
     else
         warning "Security Monitor still having issues"
@@ -283,13 +285,13 @@ ssl.enabled: false
 EOF
 
     # Copy simplified configuration
-    docker cp /home/mills/collections/wazuh/filebeat-simple.yml wazuh-manager:/etc/filebeat/filebeat.yml 2>/dev/null || true
+    ${DOCKER} cp /home/mills/collections/wazuh/filebeat-simple.yml wazuh-manager:/etc/filebeat/filebeat.yml 2>/dev/null || true
     
     # Restart Wazuh manager
-    docker restart wazuh-manager
+    ${DOCKER} restart wazuh-manager
     sleep 30
     
-    if docker ps | grep -q wazuh-manager; then
+    if ${DOCKER} ps | grep -q wazuh-manager; then
         success "Wazuh Manager stabilized with simplified TLS configuration"
     else
         warning "Wazuh Manager still restarting"
@@ -373,16 +375,16 @@ if __name__ == "__main__":
 EOF
 
     # Update ML analytics with lightweight version
-    docker exec ml-analytics bash -c "
+    ${DOCKER} exec ml-analytics bash -c "
         cd /app && 
         cp /app/lightweight_ml.py /app/main.py &&
         python3 /app/main.py
     " 2>/dev/null || warning "ML analytics container restart needed"
     
-    docker restart ml-analytics
+    ${DOCKER} restart ml-analytics
     sleep 15
     
-    if docker ps | grep -q ml-analytics; then
+    if ${DOCKER} ps | grep -q ml-analytics; then
         success "ML Analytics stabilized with lightweight implementation"
     else
         warning "ML Analytics still having issues"
@@ -394,10 +396,10 @@ fix_grafana() {
     info "Phase 6: Fixing Grafana service"
     
     # Check Grafana configuration
-    docker exec grafana bash -c "grafana-cli admin reset-admin-password admin123" 2>/dev/null || true
+    ${DOCKER} exec grafana bash -c "grafana-cli admin reset-admin-password admin123" 2>/dev/null || true
     
     # Restart Grafana with clean state
-    docker restart grafana
+    ${DOCKER} restart grafana
     sleep 20
     
     # Verify Grafana is responding
@@ -413,9 +415,9 @@ fix_zabbix_web() {
     info "Phase 7: Fixing Zabbix Web service health"
     
     # Check Zabbix database connectivity
-    if docker exec zabbix-mysql mysql -u root -pzabbix_password -e "SHOW DATABASES" | grep -q zabbix; then
+    if ${DOCKER} exec zabbix-mysql mysql -u root -pzabbix_password -e "SHOW DATABASES" | grep -q zabbix; then
         # Restart Zabbix web service
-        docker restart zabbix-web
+        ${DOCKER} restart zabbix-web
         sleep 30
         
         if curl -s http://localhost:8080/ | grep -q "Zabbix"; then
@@ -447,21 +449,21 @@ check_and_recover_service() {
     local max_restarts="${2:-5}"
     
     # Check if service is restarting
-    if docker ps --format "{{.Names}}" --filter "name=$service_name" | xargs docker inspect --format="{{.State.Status}}" | grep -q "restarting"; then
+    if ${DOCKER} ps --format "{{.Names}}" --filter "name=$service_name" | xargs ${DOCKER} inspect --format="{{.State.Status}}" | grep -q "restarting"; then
         log_recovery "Detected $service_name in restart loop"
         
         # Get restart count
-        restart_count=$(docker inspect "$service_name" --format="{{.RestartCount}}")
+        restart_count=$(${DOCKER} inspect "$service_name" --format="{{.RestartCount}}")
         
         if [ "$restart_count" -gt "$max_restarts" ]; then
             log_recovery "Service $service_name exceeded restart limit ($restart_count > $max_restarts)"
             
             # Stop the problematic service
-            docker stop "$service_name" 2>/dev/null || true
+            ${DOCKER} stop "$service_name" 2>/dev/null || true
             
             # Wait and start with reduced resources
             sleep 10
-            docker start "$service_name" 2>/dev/null || true
+            ${DOCKER} start "$service_name" 2>/dev/null || true
             
             log_recovery "Attempted recovery for $service_name"
         fi
@@ -514,7 +516,7 @@ EOF
     services=("mysql-exporter-production" "threat-intelligence" "security-monitor" "wazuh-manager" "ml-analytics" "grafana" "zabbix-web")
     
     for service in "${services[@]}"; do
-        if docker ps | grep -q "$service.*Up"; then
+        if ${DOCKER} ps | grep -q "$service.*Up"; then
             echo "- ✅ **$service**: Stabilized and running" >> "$report_file"
         else
             echo "- 🔄 **$service**: Still stabilizing" >> "$report_file"

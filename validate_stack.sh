@@ -3,6 +3,8 @@
 # Tests health-checks, CVE scanning, and backup/restore functionality
 
 set -euo pipefail
+# Standard non-interactive env
+source /usr/local/lib/codex_env.sh 2>/dev/null || true
 
 # Colors for output
 RED='\033[0;31m'
@@ -159,9 +161,9 @@ fi
 
 # Get active Docker Compose command
 get_compose_bin() {
-    if docker compose version >/dev/null 2>&1; then
-        echo "docker compose"
-    elif command -v docker-compose >/dev/null 2>&1; then
+    if ${DOCKER} compose version >/dev/null 2>&1; then
+        echo "${DOCKER} compose"
+    elif command -v ${DOCKER} compose >/dev/null 2>&1; then
         echo "docker-compose"
     else
         echo ""  # caller handles error
@@ -180,7 +182,7 @@ get_compose_command() {
     
     # Check if any profiles are running
     local running_services
-    running_services=$(docker ps --format "{{.Names}}" 2>/dev/null || echo "")
+    running_services=$(${DOCKER} ps --format "{{.Names}}" 2>/dev/null || echo "")
     
     # Check if production services are running  
     if echo "${running_services}" | grep -qE "(wazuh|suricata|zeek|ml-analytics|jaeger)"; then
@@ -211,11 +213,11 @@ check_prerequisites() {
     local prereq_failed=false
     
     # Check Docker
-    if ! command -v docker &> /dev/null; then
+    if ! command -v ${DOCKER} &> /dev/null; then
         error "Docker is not available"
         prereq_failed=true
     else
-        if ! docker info &> /dev/null; then
+        if ! ${DOCKER} info &> /dev/null; then
             error "Docker daemon is not running"
             prereq_failed=true
         fi
@@ -304,7 +306,7 @@ test_health_checks() {
         
         # Check container health status
         local health_status
-        health_status=$(docker inspect "${container_name}" --format='{{.State.Health.Status}}' 2>/dev/null || echo "none")
+        health_status=$(${DOCKER} inspect "${container_name}" --format='{{.State.Health.Status}}' 2>/dev/null || echo "none")
         
         case "${health_status}" in
             "healthy")
@@ -419,7 +421,7 @@ test_security_scanning() {
     
     # Check if security services are running
     local running_containers
-    running_containers=$(docker ps --format "{{.Names}}" 2>/dev/null || echo "")
+    running_containers=$(${DOCKER} ps --format "{{.Names}}" 2>/dev/null || echo "")
     
     for service in "${security_services[@]}"; do
         if echo "${running_containers}" | grep -q "^${service}$"; then
@@ -504,7 +506,7 @@ test_backup_restore() {
     # Test InfluxDB backup functionality
     test_start "InfluxDB backup test"
     
-    if docker ps | grep -q "influxdb"; then
+    if ${DOCKER} ps | grep -q "influxdb"; then
         log "Testing InfluxDB backup creation..."
         
         local backup_script="/home/mills/scripts/backups/backup_influxdb.sh"
@@ -530,7 +532,7 @@ test_backup_restore() {
     local backup_script="/home/mills/scripts/backups/backup_volume.sh"
     
     for volume in "${test_volumes[@]}"; do
-        if docker volume ls | grep -q "^local.*${volume}$"; then
+        if ${DOCKER} volume ls | grep -q "^local.*${volume}$"; then
             log "Testing backup for volume: ${volume}"
             
             if timeout 60 "${backup_script}" --dry-run "${volume}"; then

@@ -59,7 +59,7 @@ class ActionProposer:
             proposal["proposed_actions"].append({
                 "type": "restart_service",
                 "target": service or host,
-                "command": f"docker-compose restart {service}",
+                "command": f"${DOCKER} compose restart {service}",
                 "rationale": f"Service {service} appears to be down"
             })
             proposal["confidence"] = 0.8

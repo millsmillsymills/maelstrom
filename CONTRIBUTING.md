@@ -24,7 +24,7 @@ Thank you for improving the Maelstrom stack. This guide summarizes expectations 
 
 ## PR Checklist
 - Clear summary of what/why, linked issue if applicable.
-- Repro/validation steps, including `docker-compose -f base.yml config --quiet` output when relevant.
+- Repro/validation steps, including `${DOCKER} compose -f base.yml config --quiet` output when relevant.
 - Screenshots for dashboards/UX; list active profiles (e.g., `security-stack wazuh-stack`).
 
 ## Security
@@ -34,4 +34,3 @@ Thank you for improving the Maelstrom stack. This guide summarizes expectations 
 ## Tests
 - Add or update tests under `tests/unit` and `tests/integration` with pytest markers.
 - Tests must be idempotent and independent.
-

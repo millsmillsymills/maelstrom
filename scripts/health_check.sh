@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 
 # Comprehensive Health Check and Self-Healing Script
 # Monitors all critical services and attempts automatic recovery
@@ -42,25 +44,25 @@ check_service() {
 }
 
 # Health Check Definitions
-check_service "Grafana" "curl -s http://localhost:3000/api/health" "docker restart grafana"
-check_service "Prometheus" "curl -s http://localhost:9090/-/healthy" "docker restart prometheus"
-check_service "InfluxDB" "curl -s http://localhost:8086/ping" "docker restart influxdb"
-check_service "Alertmanager" "curl -s http://localhost:9093/api/v2/status" "docker restart alertmanager"
-check_service "Node Exporter" "curl -s http://localhost:9100/metrics | head -1" "docker restart node-exporter"
-check_service "cAdvisor" "curl -s http://localhost:8081/metrics | head -1" "docker restart cadvisor"
-check_service "UniFi Poller" "curl -s http://localhost:9130/metrics | head -1" "docker restart unpoller-prometheus"
-check_service "Slack Notifier" "curl -s http://localhost:5001/health" "docker restart slack-notifier"
+check_service "Grafana" "curl -s http://localhost:3000/api/health" "${DOCKER} restart grafana"
+check_service "Prometheus" "curl -s http://localhost:9090/-/healthy" "${DOCKER} restart prometheus"
+check_service "InfluxDB" "curl -s http://localhost:8086/ping" "${DOCKER} restart influxdb"
+check_service "Alertmanager" "curl -s http://localhost:9093/api/v2/status" "${DOCKER} restart alertmanager"
+check_service "Node Exporter" "curl -s http://localhost:9100/metrics | head -1" "${DOCKER} restart node-exporter"
+check_service "cAdvisor" "curl -s http://localhost:8081/metrics | head -1" "${DOCKER} restart cadvisor"
+check_service "UniFi Poller" "curl -s http://localhost:9130/metrics | head -1" "${DOCKER} restart unpoller-prometheus"
+check_service "Slack Notifier" "curl -s http://localhost:5001/health" "${DOCKER} restart slack-notifier"
 
 # Check Prometheus targets
 unhealthy_targets=$(curl -s "http://localhost:9090/api/v1/targets" 2>/dev/null | grep -o '"health":"down"' | wc -l)
 if [ "$unhealthy_targets" -gt 0 ]; then
     log "⚠️ Found $unhealthy_targets unhealthy Prometheus targets"
     # Restart prometheus to refresh targets
-    docker restart prometheus
+    ${DOCKER} restart prometheus
 fi
 
 # Check container restart loops
-restart_count=$(docker ps --format "{{.Names}}\t{{.Status}}" | grep -c "Restart")
+restart_count=$(${DOCKER} ps --format "{{.Names}}\t{{.Status}}" | grep -c "Restart")
 if [ "$restart_count" -gt 2 ]; then
     log "⚠️ Found $restart_count containers in restart loops"
 fi
@@ -69,14 +71,14 @@ fi
 disk_usage=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
 if [ "$disk_usage" -gt 85 ]; then
     log "⚠️ Disk usage is ${disk_usage}% - cleaning up..."
-    docker system prune -f
+    ${DOCKER} system prune -f
 fi
 
 # Memory check
 memory_usage=$(free | awk 'NR==2{printf "%.0f", $3*100/$2}')
 if [ "$memory_usage" -gt 90 ]; then
     log "⚠️ Memory usage is ${memory_usage}% - restarting high-memory containers"
-    docker restart telegraf ml-analytics-fixed
+    ${DOCKER} restart telegraf ml-analytics-fixed
 fi
 
 log "Health check completed"

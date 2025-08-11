@@ -455,8 +455,9 @@ services:
   mysql-exporter:
     image: prom/mysqld-exporter:latest
     container_name: mysql-exporter
-    environment:
-      - DATA_SOURCE_NAME=root:${ZABBIX_MYSQL_ROOT_PASSWORD}@tcp(zabbix-mysql:3306)/?parseTime=true
+    command:
+      - '--mysqld.address=zabbix-mysql:3306'
+      - '--config.my-cnf=/etc/mysql/.my.cnf'
     ports:
       - "127.0.0.1:9104:9104"
     restart: unless-stopped
@@ -466,6 +467,8 @@ services:
     read_only: false
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=50m
+    volumes:
+      - /home/mills/secrets/mysql_exporter_my_cnf:/etc/mysql/.my.cnf:ro
     logging: *default-logging
     deploy:
       resources:
@@ -1620,7 +1623,7 @@ services:
       - no-new-privileges:true
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      test: ["CMD-SHELL", "python - <<'PY'\nimport sys, urllib.request\ntry:\n    with urllib.request.urlopen('http://localhost:5002/health', timeout=3) as r:\n        sys.exit(0 if r.status==200 else 1)\nexcept Exception:\n    sys.exit(1)\nPY"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1657,7 +1660,7 @@ services:
       - no-new-privileges:true
     logging: *default-logging
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
+      test: ["CMD-SHELL", "python - <<'PY'\nimport sys, urllib.request\ntry:\n    with urllib.request.urlopen('http://localhost:5003/health', timeout=3) as r:\n        sys.exit(0 if r.status==200 else 1)\nexcept Exception:\n    sys.exit(1)\nPY"]
       interval: 30s
       timeout: 10s
       retries: 3

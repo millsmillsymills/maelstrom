@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Comprehensive systems health check for Maelstrom/Resurgent
 set -euo pipefail
+source /usr/local/lib/codex_env.sh 2>/dev/null || true
 
 log() { printf "%s %s\n" "[$(date -Is)]" "$*"; }
 
@@ -40,11 +41,11 @@ DISK=$(try df -hT)
 LSBLK=$(try lsblk -o NAME,TYPE,SIZE,MOUNTPOINT)
 
 # Docker status
-DOCKER_BIN=$(command -v docker || true)
+DOCKER_BIN=$(command -v ${DOCKER} || true)
 if [ -n "$DOCKER_BIN" ]; then
-  DOCKER_PS=$(try docker ps --format '{{.Names}}\t{{.Status}}\t{{.Image}}')
+  DOCKER_PS=$(try ${DOCKER} ps --format '{{.Names}}\t{{.Status}}\t{{.Image}}')
 else
-  DOCKER_PS="docker not available"
+  DOCKER_PS="${DOCKER} not available"
 fi
 
 # Network
@@ -83,10 +84,10 @@ done
 # Attempt remediations (safe only)
 restart_service() {
   local svc="$1"
-  if systemctl is-enabled "$svc" >/dev/null 2>&1; then
-    if ! systemctl is-active "$svc" >/dev/null 2>&1; then
+  if sysctl_wrap is-enabled "$svc" >/dev/null 2>&1; then
+    if ! sysctl_wrap is-active "$svc" >/dev/null 2>&1; then
       log "Restarting service: $svc"
-      try sudo systemctl restart "$svc" || try systemctl restart "$svc"
+      try sysctl_wrap restart "$svc" || true
     fi
   fi
 }
@@ -101,11 +102,11 @@ if [ -n "$DOCKER_BIN" ]; then
     case "$status" in
       Exited*|Created*|Dead*|Restarting*)
         log "Restarting container $name ($status)"
-        try docker restart "$name" >/dev/null || true
+        try ${DOCKER} restart "$name" >/dev/null || true
         add_issue "Restarted container $name ($status)" runtime
       ;;
     esac
-  done < <(docker ps -a --format '{{.Names}}\t{{.Status}}\t{{.Image}}')
+  done < <(${DOCKER} ps -a --format '{{.Names}}\t{{.Status}}\t{{.Image}}')
 fi
 
 # Assemble reports
@@ -164,11 +165,10 @@ fi
   printf '  "disks": %s,\n' "$(df -P | awk 'NR>1{printf("{\"fs\":\"%s\",\"size\":\"%s\",\"used\":\"%s\",\"avail\":\"%s\",\"mount\":\"%s\"}%s",$1,$2,$3,$4,$6,(NR>1?",":""))}' | sed 's/}$/}],/;1s/^/[/' | sed 's/],$/]/')"
   printf '  "network": {"route": "%s", "resolv": "%s"},\n' "$(echo "$ROUTE" | sed 's/\\/\\\\/g')" "$(echo "$RESOLV" | sed 's/\\/\\\\/g')"
   printf '  "ports": %s,\n' "$(ss -ltn | tail -n +2 | awk '{print $4}' | awk -F: '{print $NF}' | sort -nu | awk 'BEGIN{printf("[")} {printf(n?",%s":"%s",$1,$1); n=1} END{print "]"}')"
-  printf '  "docker_ps": %s\n' "$(if [ -n "$DOCKER_BIN" ]; then docker ps --format '{{json .}}' | paste -sd, - | sed 's/^/[/' | sed 's/$/]/'; else echo '[]'; fi)"
+  printf '  "docker_ps": %s\n' "$(if [ -n "$DOCKER_BIN" ]; then ${DOCKER} ps --format '{{json .}}' | paste -sd, - | sed 's/^/[/' | sed 's/$/]/'; else echo '[]'; fi)"
   echo '}'
 } > "$JSON"
 
 log "Report written: $MD"
 log "Report written: $JSON"
 echo "$MD"
-

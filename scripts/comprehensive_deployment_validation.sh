@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Comprehensive Deployment Validation Script
 # End-to-end validation of all monitoring stack enhancements
 
@@ -71,7 +73,7 @@ test_service_health() {
         local endpoint="${SERVICE_ENDPOINTS[$service]}"
         
         # Check if container is running
-        if ! docker ps --filter "name=$service" --filter "status=running" --quiet | grep -q .; then
+        if ! ${DOCKER} ps --filter "name=$service" --filter "status=running" --quiet | grep -q .; then
             test_result "service.${service}.running" "FAIL" "Container not running"
             continue
         fi
@@ -84,7 +86,7 @@ test_service_health() {
         fi
         
         # Test container health
-        local health_status=$(docker inspect "$service" --format='{{.State.Health.Status}}' 2>/dev/null || echo "none")
+        local health_status=$(${DOCKER} inspect "$service" --format='{{.State.Health.Status}}' 2>/dev/null || echo "none")
         if [[ "$health_status" == "healthy" ]]; then
             test_result "service.${service}.health" "PASS" "Container health check passing"
         elif [[ "$health_status" == "none" ]]; then
@@ -108,11 +110,11 @@ test_data_collection() {
     fi
     
     # Test InfluxDB data ingestion
-    if docker exec influxdb influx -execute 'SHOW DATABASES' 2>/dev/null | grep -q "telegraf"; then
+    if ${DOCKER} exec influxdb influx -execute 'SHOW DATABASES' 2>/dev/null | grep -q "telegraf"; then
         test_result "data.influxdb.database" "PASS" "InfluxDB telegraf database exists"
         
         # Test recent data
-        local recent_points=$(docker exec influxdb influx -database telegraf -execute 'SELECT COUNT(*) FROM cpu WHERE time > now() - 5m' 2>/dev/null | tail -1 || echo "0")
+        local recent_points=$(${DOCKER} exec influxdb influx -database telegraf -execute 'SELECT COUNT(*) FROM cpu WHERE time > now() - 5m' 2>/dev/null | tail -1 || echo "0")
         if [[ "$recent_points" =~ ^[0-9]+$ ]] && [[ $recent_points -gt 0 ]]; then
             test_result "data.influxdb.recent" "PASS" "Recent data points in InfluxDB: $recent_points"
         else
@@ -370,7 +372,7 @@ test_network_security() {
     log "=== Testing Network Security ==="
     
     # Test Docker network configuration
-    local monitoring_networks=$(docker network ls | grep -c "monitoring" || echo "0")
+    local monitoring_networks=$(${DOCKER} network ls | grep -c "monitoring" || echo "0")
     if [[ $monitoring_networks -gt 0 ]]; then
         test_result "network.monitoring.networks" "PASS" "$monitoring_networks monitoring networks configured"
     else
@@ -379,14 +381,14 @@ test_network_security() {
     
     # Test container security options
     local secure_containers=0
-    for container in $(docker ps --format "{{.Names}}"); do
-        local security_opts=$(docker inspect "$container" --format '{{.HostConfig.SecurityOpt}}' 2>/dev/null || echo "[]")
+    for container in $(${DOCKER} ps --format "{{.Names}}"); do
+        local security_opts=$(${DOCKER} inspect "$container" --format '{{.HostConfig.SecurityOpt}}' 2>/dev/null || echo "[]")
         if [[ "$security_opts" =~ "no-new-privileges:true" ]]; then
             ((secure_containers++))
         fi
     done
     
-    local total_containers=$(docker ps | wc -l)
+    local total_containers=$(${DOCKER} ps | wc -l)
     ((total_containers--))  # Remove header line
     
     if [[ $secure_containers -gt $((total_containers / 2)) ]]; then

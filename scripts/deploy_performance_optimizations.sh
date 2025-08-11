@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Deploy Performance Optimizations Script
 # Applies all performance enhancements to the monitoring stack
 
@@ -44,9 +46,9 @@ deploy_redis_cache() {
     fi
     
     # Restart Redis if running
-    if docker ps --filter "name=redis" --filter "status=running" --quiet | grep -q .; then
+    if ${DOCKER} ps --filter "name=redis" --filter "status=running" --quiet | grep -q .; then
         log "Restarting Redis to apply new configuration..."
-        docker restart redis || true
+        ${DOCKER} restart redis || true
     else
         log "Redis container not running, will use new config on next start"
     fi
@@ -69,9 +71,9 @@ deploy_nginx_cache() {
     chown -R 101:101 /var/cache/nginx 2>/dev/null || true
     
     # Restart Nginx if running
-    if docker ps --filter "name=nginx" --filter "status=running" --quiet | grep -q .; then
+    if ${DOCKER} ps --filter "name=nginx" --filter "status=running" --quiet | grep -q .; then
         log "Restarting Nginx to apply new configuration..."
-        docker restart nginx || true
+        ${DOCKER} restart nginx || true
     else
         log "Nginx container not running, will use new config on next start"
     fi
@@ -90,9 +92,9 @@ deploy_influxdb_optimization() {
     fi
     
     # Restart InfluxDB if running
-    if docker ps --filter "name=influxdb" --filter "status=running" --quiet | grep -q .; then
+    if ${DOCKER} ps --filter "name=influxdb" --filter "status=running" --quiet | grep -q .; then
         log "Restarting InfluxDB to apply new configuration..."
-        docker restart influxdb || true
+        ${DOCKER} restart influxdb || true
         
         # Wait for InfluxDB to come back online
         log "Waiting for InfluxDB to restart..."
@@ -130,9 +132,9 @@ deploy_telegraf_optimization() {
     fi
     
     # Restart Telegraf if running
-    if docker ps --filter "name=telegraf" --filter "status=running" --quiet | grep -q .; then
+    if ${DOCKER} ps --filter "name=telegraf" --filter "status=running" --quiet | grep -q .; then
         log "Restarting Telegraf to apply new configuration..."
-        docker restart telegraf || true
+        ${DOCKER} restart telegraf || true
         
         # Wait and verify Telegraf metrics endpoint
         sleep 15
@@ -172,9 +174,9 @@ deploy_prometheus_rules() {
     fi
     
     # Restart Prometheus if running
-    if docker ps --filter "name=prometheus" --filter "status=running" --quiet | grep -q .; then
+    if ${DOCKER} ps --filter "name=prometheus" --filter "status=running" --quiet | grep -q .; then
         log "Restarting Prometheus to apply new rules..."
-        docker restart prometheus || true
+        ${DOCKER} restart prometheus || true
         
         # Wait and verify Prometheus is responding
         sleep 20
@@ -200,9 +202,9 @@ deploy_grafana_optimization() {
     fi
     
     # Restart Grafana if running to pick up any changes
-    if docker ps --filter "name=grafana" --filter "status=running" --quiet | grep -q .; then
+    if ${DOCKER} ps --filter "name=grafana" --filter "status=running" --quiet | grep -q .; then
         log "Restarting Grafana to apply optimizations..."
-        docker restart grafana || true
+        ${DOCKER} restart grafana || true
         
         # Wait and verify Grafana is responding
         sleep 15
@@ -226,7 +228,7 @@ validate_deployment() {
     local services=("grafana" "prometheus" "influxdb" "telegraf")
     
     for service in "${services[@]}"; do
-        if docker ps --filter "name=$service" --filter "status=running" --quiet | grep -q .; then
+        if ${DOCKER} ps --filter "name=$service" --filter "status=running" --quiet | grep -q .; then
             log "✓ $service is running"
         else
             log "✗ $service is not running"
@@ -308,8 +310,8 @@ rollback_deployment() {
         
         # Restart services
         for service in grafana prometheus influxdb telegraf redis nginx; do
-            if docker ps --filter "name=$service" --filter "status=running" --quiet | grep -q .; then
-                docker restart "$service" || true
+            if ${DOCKER} ps --filter "name=$service" --filter "status=running" --quiet | grep -q .; then
+                ${DOCKER} restart "$service" || true
             fi
         done
         
@@ -391,7 +393,7 @@ EOF
 
     # Add validation results
     for service in grafana prometheus influxdb telegraf; do
-        if docker ps --filter "name=$service" --filter "status=running" --quiet | grep -q .; then
+        if ${DOCKER} ps --filter "name=$service" --filter "status=running" --quiet | grep -q .; then
             echo "- **$service**: ✅ Running and responding" >> "$report_file"
         else
             echo "- **$service**: ❌ Not running or not responding" >> "$report_file"
@@ -435,7 +437,7 @@ EOF
 ### 📞 Support Information
 
 For performance issues or questions:
-1. Check service logs: `docker-compose logs -f <service_name>`
+1. Check service logs: `${DOCKER} compose logs -f <service_name>`
 2. Monitor performance dashboards for anomalies
 3. Review optimization settings in service configurations
 4. Use rollback procedure if critical issues arise

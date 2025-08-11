@@ -9,6 +9,16 @@ jobs:
   gh-probe:
     runs-on: ubuntu-latest
     steps:
+      - name: noninteractive-check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -x /usr/local/bin/codex-preflight ]; then
+            /usr/local/bin/codex-preflight
+          else
+            echo "codex-preflight not present on runner; skipping preflight."
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 set -euo pipefail
 
 usage() {
@@ -100,9 +102,9 @@ OPTS="credentials=$CRED_FILE,uid=$UID_VAL,gid=$GID_VAL,file_mode=0644,dir_mode=0
 MOUNT_CMD=(mount -t cifs "//$SERVER/$SHARE" "$MOUNTPOINT" -o "$OPTS")
 
 if [[ $EUID -ne 0 ]]; then
-  if command -v sudo >/dev/null 2>&1; then
+  if command -v ${SUDO} >/dev/null 2>&1; then
     echo "Mounting with sudo: //$SERVER/$SHARE -> $MOUNTPOINT" >&2
-    sudo "${MOUNT_CMD[@]}"
+    ${SUDO} "${MOUNT_CMD[@]}"
   else
     echo "Root privileges required to mount. Re-run with sudo." >&2
     exit 1
@@ -125,4 +127,3 @@ if [[ -n "$TMP_CRED" ]]; then
   # Leave temp cred file in place until unmount; warn user for manual cleanup
   echo "Temporary credentials file created at $TMP_CRED (600). Remove after unmount." >&2
 fi
-

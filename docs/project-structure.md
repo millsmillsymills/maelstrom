@@ -21,17 +21,17 @@
   - collections-20250805_030001.tar.gz
   - collections-20250806_030001.tar.gz
   - critical-configs-20250808_042428.tar.gz
-  - docker-compose-20250726_030001.yml
-  - docker-compose-20250727_030001.yml
-  - docker-compose-20250729_030001.yml
-  - docker-compose-20250730_030001.yml
-  - docker-compose-20250731_030001.yml
-  - docker-compose-20250801_030001.yml
-  - docker-compose-20250802_030001.yml
-  - docker-compose-20250803_030001.yml
-  - docker-compose-20250804_030001.yml
-  - docker-compose-20250805_030001.yml
-  - docker-compose-20250806_030001.yml
+  - ${DOCKER} compose-20250726_030001.yml
+  - ${DOCKER} compose-20250727_030001.yml
+  - ${DOCKER} compose-20250729_030001.yml
+  - ${DOCKER} compose-20250730_030001.yml
+  - ${DOCKER} compose-20250731_030001.yml
+  - ${DOCKER} compose-20250801_030001.yml
+  - ${DOCKER} compose-20250802_030001.yml
+  - ${DOCKER} compose-20250803_030001.yml
+  - ${DOCKER} compose-20250804_030001.yml
+  - ${DOCKER} compose-20250805_030001.yml
+  - ${DOCKER} compose-20250806_030001.yml
   - .env.backup.20250806_235111
   - maelstrom_backup_20250807_023511
   - mysql-20250726_030001.sql

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 set -euo pipefail
 
 # Sync the working tree of this repo to the resurgent mirror.

@@ -73,13 +73,13 @@ repos:
   # Docker Compose validation
   - repo: local
     hooks:
-      - id: docker-compose-validate
+      - id: ${DOCKER} compose-validate
         name: Validate Docker Compose
         description: Validate Docker Compose configuration
         entry: bash
         language: system
         pass_filenames: false
-        args: ['-c', 'docker-compose -f base.yml config --quiet && docker-compose -f base.yml -f prod.yml config --quiet']
+        args: ['-c', '${DOCKER} compose -f base.yml config --quiet && ${DOCKER} compose -f base.yml -f prod.yml config --quiet']
         files: \.(yml|yaml)$
 
   # Custom validation hooks
@@ -109,6 +109,13 @@ repos:
         entry: bash
         language: system
         args: ['-c', 'find . -name "*.sh" -not -path "./.git/*" -not -executable -print | while read -r file; do echo "Warning: $file is not executable"; done']
+        pass_filenames: false
+
+      - id: banned-github-auth-patterns
+        name: Enforce non-interactive GitHub auth
+        description: Fail on banned interactive/insecure GitHub auth patterns
+        entry: scripts/security/check_banned_github_auth.sh
+        language: system
         pass_filenames: false
 
   # Generic file checks
@@ -182,5 +189,5 @@ ci:
   autoupdate_branch: ''
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
   autoupdate_schedule: weekly
-  skip: [trivy-config, docker-compose-validate]
+  skip: [trivy-config, ${DOCKER} compose-validate]
   submodules: false

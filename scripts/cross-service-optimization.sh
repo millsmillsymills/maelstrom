@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Cross-Service Communication Optimization Implementation
 
 set -e
@@ -1102,8 +1104,7 @@ create_service_discovery() {
 import json
 import time
 import logging
-import docker
-import threading
+import ${DOCKER} import threading
 from datetime import datetime
 from collections import defaultdict
 
@@ -1518,8 +1519,8 @@ ss -tuln | grep -E ':(3000|9090|8086|8888)'
 ### Diagnostic Commands
 \`\`\`bash
 # Check network connectivity
-docker network ls
-docker network inspect monitoring-optimized
+${DOCKER} network ls
+${DOCKER} network inspect monitoring-optimized
 
 # Verify service ports
 netstat -tlnp | grep -E ':(3000|9090|8086)'

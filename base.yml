@@ -13,7 +13,7 @@ x-deploy: &default-deploy
 
 services:
   influxdb:
-    image: influxdb:1.8
+    image: influxdb:${INFLUXDB_TAG:-1.8}
     container_name: influxdb
     ports:
       - "127.0.0.1:8086:8086"
@@ -44,7 +44,7 @@ services:
         ipv4_address: 172.30.0.2
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:${GRAFANA_TAG:-latest}
     container_name: grafana
     ports:
       - "127.0.0.1:3000:3000"
@@ -86,7 +86,7 @@ services:
         ipv4_address: 172.30.0.3
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:${PROMETHEUS_TAG:-latest}
     container_name: prometheus
     volumes:
       - /home/mills/collections/prometheus:/etc/prometheus:ro
@@ -106,8 +106,8 @@ services:
       - "127.0.0.1:9090:9090"
     restart: unless-stopped
     healthcheck:
-      # Test: Check if Prometheus API responds and is ready
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/ready"]
+      # Treat 200 (ready) or 401 (auth enforced) as healthy
+      test: ["CMD-SHELL", "wget -S --spider -O - http://localhost:9090/-/ready 2>&1 | grep -qE 'HTTP/1\\.[01] (200|401)'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -130,7 +130,7 @@ services:
         ipv4_address: 172.30.0.43
 
   alertmanager:
-    image: prom/alertmanager:latest
+    image: prom/alertmanager:${ALERTMANAGER_TAG:-latest}
     container_name: alertmanager
     ports:
       - "127.0.0.1:9093:9093"
@@ -268,7 +268,7 @@ services:
         ipv4_address: 172.30.0.11
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:${CADVISOR_TAG:-latest}
     container_name: cadvisor
     ports:
       - "127.0.0.1:8081:8080"
@@ -297,7 +297,7 @@ services:
         ipv4_address: 172.30.0.12
 
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:${NODE_EXPORTER_TAG:-latest}
     container_name: node-exporter
     ports:
       - "127.0.0.1:9100:9100"
@@ -336,7 +336,7 @@ services:
       start_period: 30s
 
   mysql-exporter:
-    image: prom/mysqld-exporter:latest
+    image: prom/mysqld-exporter:${MYSQL_EXPORTER_TAG:-latest}
     container_name: mysql-exporter
     profiles: [zabbix]
     command:
@@ -378,9 +378,10 @@ services:
         ipv4_address: 172.30.0.40
 
   blackbox-exporter:
-    image: prom/blackbox-exporter:latest
+    image: prom/blackbox-exporter:${BLACKBOX_EXPORTER_TAG:-latest}
     container_name: blackbox-exporter
     profiles: [networking]
+    command: ["--config.file=/etc/blackbox_exporter/blackbox.yml"]
     ports:
       - "127.0.0.1:9115:9115"
     volumes:
@@ -411,7 +412,7 @@ services:
       start_period: 30s
 
   snmp-exporter:
-    image: prom/snmp-exporter:latest
+    image: prom/snmp-exporter:${SNMP_EXPORTER_TAG:-latest}
     container_name: snmp-exporter
     profiles: [networking]
     ports:
@@ -444,7 +445,7 @@ services:
       start_period: 30s
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:${LOKI_TAG:-latest}
     container_name: loki
     profiles: [logging, security-stack]
     ports:
@@ -479,7 +480,7 @@ services:
       start_period: 30s
 
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail:${PROMTAIL_TAG:-latest}
     container_name: promtail
     profiles: [logging]
     volumes:
@@ -515,7 +516,7 @@ services:
       start_period: 30s
 
   pihole:
-    image: pihole/pihole:latest
+    image: pihole/pihole:${PIHOLE_TAG:-latest}
     container_name: pihole
     profiles: [networking]
     networks:
@@ -549,7 +550,7 @@ services:
           memory: 128M
 
   pihole-secondary:
-    image: pihole/pihole:latest
+    image: pihole/pihole:${PIHOLE_TAG:-latest}
     container_name: pihole-secondary
     profiles: [networking]
     ports:
@@ -588,7 +589,7 @@ services:
         ipv4_address: 172.30.0.25
 
   zabbix-server:
-    image: zabbix/zabbix-server-mysql:latest
+    image: zabbix/zabbix-server-mysql:${ZABBIX_SERVER_TAG:-latest}
     container_name: zabbix-server
     profiles: [zabbix]
     environment:
@@ -625,7 +626,7 @@ services:
       start_period: 60s
 
   zabbix-web:
-    image: zabbix/zabbix-web-nginx-mysql:latest
+    image: zabbix/zabbix-web-nginx-mysql:${ZABBIX_WEB_TAG:-latest}
     container_name: zabbix-web
     profiles: [zabbix]
     environment:
@@ -659,7 +660,7 @@ services:
         ipv4_address: 172.30.0.8
 
   zabbix-mysql:
-    image: mysql:8.0
+    image: mysql:${MYSQL_TAG:-8.0}
     container_name: zabbix-mysql
     profiles: [zabbix]
     environment:
@@ -704,7 +705,7 @@ services:
         ipv4_address: 172.30.0.9
 
   slack-notifier:
-    image: python:3.11-slim
+    image: python:${PYTHON_BASE_TAG:-3.11-slim}
     container_name: slack-notifier
     profiles: [notifications, security-stack]
     ports:
@@ -733,7 +734,7 @@ services:
         ipv4_address: 172.30.0.21
 
   network-discovery:
-    image: python:3.11-slim
+    image: python:${PYTHON_BASE_TAG:-3.11-slim}
     container_name: network-discovery
     profiles: [networking]
     volumes:
@@ -769,7 +770,7 @@ services:
         ipv4_address: 172.30.0.22
 
   network-discovery-host:
-    image: python:3.11-slim
+    image: python:${PYTHON_BASE_TAG:-3.11-slim}
     container_name: network-discovery-host
     profiles: [networking]
     network_mode: host
@@ -797,7 +798,7 @@ services:
     logging: *default-logging
 
   swag:
-    image: lscr.io/linuxserver/swag:latest
+    image: lscr.io/linuxserver/swag:${SWAG_TAG:-latest}
     container_name: swag
     profiles: [reverse-proxy]
     cap_add:

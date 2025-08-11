@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 # Health check script for network analysis services (Suricata, Zeek, ntopng)
 # Returns 0 if packet capture is active, 1 otherwise
 

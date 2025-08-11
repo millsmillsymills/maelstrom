@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC1091
+[ -f /usr/local/lib/codex_env.sh ] && . /usr/local/lib/codex_env.sh
 
 # Maelstrom Infrastructure Upgrades - Master Deployment Script
 # Comprehensive deployment of all security, testing, and CI/CD enhancements
@@ -49,12 +51,12 @@ validate_prerequisites() {
     log "🔍 Validating deployment prerequisites"
     
     # Check Docker is running
-    if ! docker info >/dev/null 2>&1; then
+    if ! ${DOCKER} info >/dev/null 2>&1; then
         error "Docker is not running or accessible"
     fi
     
     # Check Docker Compose is available
-    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+    if ! command -v ${DOCKER} compose &> /dev/null && ! ${DOCKER} compose version &> /dev/null; then
         error "Docker Compose not available"
     fi
     
@@ -111,7 +113,7 @@ deploy_vulnerability_scanning() {
     
     # Deploy Vault and Trivy services
     log "  Starting Vault and Trivy containers"
-    docker compose up -d vault trivy || {
+    ${DOCKER} compose up -d vault trivy || {
         warning "Failed to start Vault/Trivy containers"
         return 1
     }
@@ -147,7 +149,7 @@ deploy_testing_framework() {
     if ! command -v pytest &> /dev/null; then
         log "  Installing pytest and dependencies"
         pip3 install --user pytest pytest-cov pytest-html pytest-xdist \
-                     requests docker influxdb prometheus_client || {
+                     requests ${DOCKER} influxdb prometheus_client || {
             warning "Failed to install pytest dependencies"
             return 1
         }
@@ -206,7 +208,7 @@ deploy_enhanced_network_discovery() {
     
     # Restart network discovery service with enhanced version
     log "  Deploying enhanced network discovery service"
-    docker compose restart network-discovery || {
+    ${DOCKER} compose restart network-discovery || {
         warning "Failed to restart network discovery service"
         return 1
     }
@@ -240,7 +242,7 @@ deploy_resource_optimizer() {
     
     # Restart resource optimizer service with enhanced version
     log "  Deploying enhanced resource monitoring and optimization"
-    docker compose restart resource-optimizer || {
+    ${DOCKER} compose restart resource-optimizer || {
         warning "Failed to restart resource optimizer service"
         return 1
     }
@@ -259,7 +261,7 @@ deploy_resource_optimizer() {
     
     # Check for InfluxDB database creation
     sleep 10
-    if docker exec influxdb influx -execute 'SHOW DATABASES' | grep -q 'resource_monitoring'; then
+    if ${DOCKER} exec influxdb influx -execute 'SHOW DATABASES' | grep -q 'resource_monitoring'; then
         log "  Resource optimizer creating monitoring database"
         success "Resource optimizer deployed and functional"
     else
@@ -282,7 +284,7 @@ deploy_maintenance_orchestrator() {
     
     # Restart self-healing service with maintenance orchestrator
     log "  Deploying maintenance orchestrator and self-healing system"
-    docker compose restart self-healing || {
+    ${DOCKER} compose restart self-healing || {
         warning "Failed to restart self-healing service"
         return 1
     }
@@ -301,7 +303,7 @@ deploy_maintenance_orchestrator() {
     
     # Check for InfluxDB database creation
     sleep 10
-    if docker exec influxdb influx -execute 'SHOW DATABASES' | grep -q 'maintenance_automation'; then
+    if ${DOCKER} exec influxdb influx -execute 'SHOW DATABASES' | grep -q 'maintenance_automation'; then
         log "  Maintenance orchestrator creating automation database"
         success "Maintenance orchestrator deployed and functional"
     else
@@ -310,7 +312,7 @@ deploy_maintenance_orchestrator() {
     fi
     
     # Test Docker socket access (critical for maintenance operations)
-    if docker exec self-healing docker ps >/dev/null 2>&1; then
+    if ${DOCKER} exec self-healing ${DOCKER} ps >/dev/null 2>&1; then
         log "  ✅ Docker socket access verified for maintenance operations"
     else
         warning "Docker socket access may be limited (continuing)"
@@ -323,7 +325,7 @@ deploy_ml_analytics() {
     
     # Restart ml-analytics service with advanced analytics engine
     log "  Deploying advanced analytics engine and ML capabilities"
-    docker compose restart ml-analytics || {
+    ${DOCKER} compose restart ml-analytics || {
         warning "Failed to restart ml-analytics service"
         return 1
     }
@@ -334,7 +336,7 @@ deploy_ml_analytics() {
     
     # Check for ML dependencies
     log "  Checking ML library availability"
-    if docker exec ml-analytics python3 -c "import numpy, pandas, sklearn; print('ML libraries loaded successfully')" >/dev/null 2>&1; then
+    if ${DOCKER} exec ml-analytics python3 -c "import numpy, pandas, sklearn; print('ML libraries loaded successfully')" >/dev/null 2>&1; then
         success "ML libraries verified and loaded"
     else
         warning "ML libraries may not be available (continuing with basic functionality)"
@@ -350,7 +352,7 @@ deploy_ml_analytics() {
     
     # Check for InfluxDB ML database creation
     sleep 15
-    if docker exec influxdb influx -execute 'SHOW DATABASES' | grep -q 'ml_analytics'; then
+    if ${DOCKER} exec influxdb influx -execute 'SHOW DATABASES' | grep -q 'ml_analytics'; then
         log "  ML analytics creating analytics database"
         success "ML analytics engine deployed and functional"
     else
@@ -360,7 +362,7 @@ deploy_ml_analytics() {
     
     # Test ML insights storage capability
     log "  Testing ML insights storage and notification capabilities"
-    if docker exec ml-analytics python3 -c "
+    if ${DOCKER} exec ml-analytics python3 -c "
 from secrets_helper import get_slack_webhook, get_database_url
 webhook = get_slack_webhook()
 db_url = get_database_url('influxdb')
@@ -373,11 +375,11 @@ print(f'Database URL configured: {bool(db_url)}')
     fi
     
     # Verify model persistence directory
-    if docker exec ml-analytics test -d /app/models 2>/dev/null; then
+    if ${DOCKER} exec ml-analytics test -d /app/models 2>/dev/null; then
         log "  ✅ Model persistence directory available"
     else
         log "  Creating model persistence directory"
-        docker exec ml-analytics mkdir -p /app/models || warning "Model persistence setup incomplete"
+        ${DOCKER} exec ml-analytics mkdir -p /app/models || warning "Model persistence setup incomplete"
     fi
 }
 
@@ -387,7 +389,7 @@ deploy_iot_integration() {
     
     # Restart IoT integration services
     log "  Deploying IoT device discovery and edge processing"
-    docker compose restart iot-integration edge-processor || {
+    ${DOCKER} compose restart iot-integration edge-processor || {
         warning "Failed to restart IoT services"
         return 1
     }
@@ -406,7 +408,7 @@ deploy_iot_integration() {
     
     # Check for IoT databases creation
     sleep 15
-    if docker exec influxdb influx -execute 'SHOW DATABASES' | grep -q 'iot_monitoring\|edge_processing'; then
+    if ${DOCKER} exec influxdb influx -execute 'SHOW DATABASES' | grep -q 'iot_monitoring\|edge_processing'; then
         log "  IoT services creating monitoring databases"
         success "IoT integration deployed and functional"
     else
@@ -416,7 +418,7 @@ deploy_iot_integration() {
     
     # Test network discovery capabilities
     log "  Testing network discovery capabilities"
-    if docker exec iot-integration python -c "import socket; print('Network access verified')" >/dev/null 2>&1; then
+    if ${DOCKER} exec iot-integration python -c "import socket; print('Network access verified')" >/dev/null 2>&1; then
         log "  ✅ Network discovery capabilities verified"
     else
         warning "Network discovery capabilities may be limited (continuing)"
@@ -429,7 +431,7 @@ deploy_advanced_alerting() {
     
     # Deploy advanced alerting service
     log "  Deploying advanced alert orchestrator"
-    docker compose up -d advanced-alerting || {
+    ${DOCKER} compose up -d advanced-alerting || {
         warning "Failed to start advanced alerting service"
         return 1
     }
@@ -448,7 +450,7 @@ deploy_advanced_alerting() {
     
     # Check for alerting database creation
     sleep 10
-    if docker exec influxdb influx -execute 'SHOW DATABASES' | grep -q 'alerting'; then
+    if ${DOCKER} exec influxdb influx -execute 'SHOW DATABASES' | grep -q 'alerting'; then
         log "  Advanced alerting creating database"
         success "Advanced alerting deployed and functional"
     else
@@ -458,7 +460,7 @@ deploy_advanced_alerting() {
     
     # Test notification capabilities
     log "  Testing notification system capabilities"
-    if docker exec advanced-alerting python -c "from secrets_helper import get_slack_webhook; print('Notifications configured:', bool(get_slack_webhook()))" 2>/dev/null; then
+    if ${DOCKER} exec advanced-alerting python -c "from secrets_helper import get_slack_webhook; print('Notifications configured:', bool(get_slack_webhook()))" 2>/dev/null; then
         log "  ✅ Notification system configured"
     else
         warning "Notification system configuration may need adjustment (continuing)"
@@ -471,7 +473,7 @@ deploy_backup_recovery() {
     
     # Deploy backup and recovery service
     log "  Deploying disaster recovery orchestrator"
-    docker compose up -d backup-recovery || {
+    ${DOCKER} compose up -d backup-recovery || {
         warning "Failed to start backup recovery service"
         return 1
     }
@@ -490,7 +492,7 @@ deploy_backup_recovery() {
     fi
     
     # Test backup functionality (dry run)
-    if docker exec backup-recovery python -c "
+    if ${DOCKER} exec backup-recovery python -c "
 import sys
 sys.path.append('/app')
 from disaster_recovery_orchestrator import DisasterRecoveryOrchestrator
@@ -507,7 +509,7 @@ print('Storage locations:', len(orchestrator.storage_manager.storage_locations))
     
     # Check for disaster recovery database creation
     sleep 10
-    if docker exec influxdb influx -execute 'SHOW DATABASES' | grep -q 'disaster_recovery'; then
+    if ${DOCKER} exec influxdb influx -execute 'SHOW DATABASES' | grep -q 'disaster_recovery'; then
         log "  Disaster recovery creating metrics database"
     fi
 }
@@ -518,7 +520,7 @@ deploy_global_federation() {
     
     # Deploy global federation service
     log "  Deploying global monitoring federation"
-    docker compose up -d global-federation || {
+    ${DOCKER} compose up -d global-federation || {
         warning "Failed to start global federation service"
         return 1
     }
@@ -528,7 +530,7 @@ deploy_global_federation() {
     sleep 30
     
     # Test federation capabilities
-    if docker exec global-federation python -c "
+    if ${DOCKER} exec global-federation python -c "
 import sys
 sys.path.append('/app')
 from global_monitoring_federation import GlobalMonitoringFederation
@@ -545,13 +547,13 @@ print('Aggregation rules loaded:', len(federation.aggregation_rules))
     
     # Check for federation database creation
     sleep 10
-    if docker exec influxdb influx -execute 'SHOW DATABASES' | grep -q 'global_federation'; then
+    if ${DOCKER} exec influxdb influx -execute 'SHOW DATABASES' | grep -q 'global_federation'; then
         log "  Global federation creating metrics database"
     fi
     
     # Test cross-site connectivity (basic check)
     log "  Testing federation connectivity capabilities"
-    if docker exec global-federation python -c "import aiohttp; print('HTTP client capabilities verified')" >/dev/null 2>&1; then
+    if ${DOCKER} exec global-federation python -c "import aiohttp; print('HTTP client capabilities verified')" >/dev/null 2>&1; then
         log "  ✅ Federation connectivity capabilities verified"
     else
         warning "Federation connectivity may be limited (continuing)"
@@ -567,7 +569,7 @@ run_final_validation() {
     local failed_services=()
     
     for service in "${critical_services[@]}"; do
-        if ! docker ps --format "{{.Names}}" | grep -q "^${service}$"; then
+        if ! ${DOCKER} ps --format "{{.Names}}" | grep -q "^${service}$"; then
             failed_services+=("$service")
         fi
     done
@@ -656,7 +658,7 @@ generate_deployment_report() {
 
 ### Service Status
 \`\`\`
-$(docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | head -20)
+$(${DOCKER} ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | head -20)
 \`\`\`
 
 ### Security Enhancements
@@ -702,7 +704,7 @@ $(docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | head -20)
 
 ### Monthly Operations
 - Review and rotate secrets if needed
-- Update container images: \`docker compose pull && docker compose up -d\`
+- Update container images: \`${DOCKER} compose pull && ${DOCKER} compose up -d\`
 
 ## Backup Information
 - **Configuration Backup:** ${BACKUP_DIR}
@@ -717,7 +719,7 @@ $(docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | head -20)
 ## Support
 - **Documentation:** \`MAELSTROM_UPGRADE_IMPLEMENTATION_COMPLETE.md\`
 - **Test Reports:** \`/home/mills/output/\`
-- **Logs:** \`docker compose logs [service_name]\`
+- **Logs:** \`${DOCKER} compose logs [service_name]\`
 EOF
     
     success "Deployment report generated: $report_file"
