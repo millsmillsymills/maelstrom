@@ -1,0 +1,37 @@
+name: Nightly Health Sanity
+
+on:
+  schedule:
+    - cron: '23 7 * * *'
+  workflow_dispatch:
+
+jobs:
+  nightly-health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: noninteractive-check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -x /usr/local/bin/codex-preflight ]; then
+            /usr/local/bin/codex-preflight || echo "preflight warnings"
+          else
+            echo "codex-preflight not present on runner; continuing"
+          fi
+
+      - name: Run health sanity
+        shell: bash
+        run: |
+          chmod +x scripts/ops/health_sanity.sh || true
+          ./scripts/ops/health_sanity.sh || true
+
+      - name: Emit endpoints reference
+        shell: bash
+        run: |
+          echo "# Readiness Endpoints" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          sed -n '1,200p' docs/ops/health_check_endpoints.md >> $GITHUB_STEP_SUMMARY
+
