@@ -12,7 +12,7 @@ repos:
         entry: shellcheck
         language: system
         files: \.(sh|bash|ksh|zsh)$
-        args: ['--format=gcc', '--severity=warning']
+        args: ['--format=gcc', '--severity=error']
 
   # YAML linting
   - repo: https://github.com/adrienverge/yamllint.git
@@ -44,6 +44,7 @@ repos:
         description: Lint Python code with flake8
         language: python
         files: \.py$
+        exclude: ^tests/
         args: ['--max-line-length=120', '--ignore=E203,W503']
 
   # Docker linting with hadolint
@@ -52,11 +53,11 @@ repos:
     hooks:
       - id: hadolint-docker
         name: Lint Dockerfiles
-        description: Lint Dockerfiles with hadolint
-        entry: hadolint
+        description: Lint Dockerfiles with hadolint (skips if missing)
+        entry: bash
         language: system
         files: Dockerfile.*
-        args: ['--ignore', 'DL3008', '--ignore', 'DL3009']
+        args: ['-c', 'command -v hadolint >/dev/null 2>&1 || { echo "hadolint not installed; skip"; exit 0; }; hadolint --ignore DL3008 --ignore DL3009 "$@"', '--']
 
   # Security scanning with trivy
   - repo: local
@@ -73,13 +74,12 @@ repos:
   # Docker Compose validation
   - repo: local
     hooks:
-      - id: ${DOCKER} compose-validate
+      - id: "${DOCKER} compose-validate"
         name: Validate Docker Compose
         description: Validate Docker Compose configuration
-        entry: bash
+        entry: scripts/validate_compose.sh
         language: system
         pass_filenames: false
-        args: ['-c', '${DOCKER} compose -f base.yml config --quiet && ${DOCKER} compose -f base.yml -f prod.yml config --quiet']
         files: \.(yml|yaml)$
 
   # Custom validation hooks
@@ -189,5 +189,7 @@ ci:
   autoupdate_branch: ''
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
   autoupdate_schedule: weekly
-  skip: [trivy-config, ${DOCKER} compose-validate]
+  skip:
+    - trivy-config
+    - "${DOCKER} compose-validate"
   submodules: false

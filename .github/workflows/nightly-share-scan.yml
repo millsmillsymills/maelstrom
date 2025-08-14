@@ -17,6 +17,14 @@ jobs:
         run: |
           chmod +x scripts/ops/share_scan.sh || true
           ./scripts/ops/share_scan.sh || true
+          if ls output/share_scan_*.md 1>/dev/null 2>&1; then
+            latest_scan=$(ls -t output/share_scan_*.md | head -n1)
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "## Share Scan Summary" >> "$GITHUB_STEP_SUMMARY"
+            echo "Appending report: ${latest_scan}" >&2
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            sed -n '1,120p' "$latest_scan" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload scan artifact
         uses: actions/upload-artifact@v4
@@ -24,4 +32,3 @@ jobs:
           name: share-scan-md
           path: output/share_scan_*.md
           if-no-files-found: warn
-

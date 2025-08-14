@@ -55,7 +55,7 @@ progress() {
 validate_step() {
     local step_name="$1"
     local validation_command="$2"
-    
+
     if eval "$validation_command" &>/dev/null; then
         success "$step_name validation passed"
         ((SUCCESS_STEPS++))
@@ -70,31 +70,31 @@ validate_step() {
 # Pre-deployment backup
 create_backup() {
     progress "Creating pre-deployment backup"
-    
+
     mkdir -p "$BACKUP_DIR"
-    
+
     # Backup existing configurations
     if [[ -f "docker-compose.yml" ]]; then
         cp docker-compose.yml "$BACKUP_DIR/docker-compose-original.yml"
     fi
-    
+
     if [[ -f ".env" ]]; then
         cp .env "$BACKUP_DIR/env-original"
     fi
-    
+
     # Backup critical configurations
     cp -r collections "$BACKUP_DIR/collections-original" 2>/dev/null || true
-    
+
     # Export current container states
     ${DOCKER} ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" > "$BACKUP_DIR/container-states-before.txt"
-    
+
     success "Backup created at $BACKUP_DIR"
 }
 
 # Deploy enhanced configurations
 deploy_enhanced_configs() {
     progress "Deploying enhanced configurations"
-    
+
     # Source the rotated secrets
     if [[ -f "/home/mills/output/20250628T040002Z/rotated_secrets.env" ]]; then
         source /home/mills/output/20250628T040002Z/rotated_secrets.env
@@ -102,20 +102,20 @@ deploy_enhanced_configs() {
     else
         warning "Rotated secrets file not found, using existing credentials"
     fi
-    
+
     # Merge enhanced configurations
     log "Merging enhanced Docker Compose configuration..."
-    
+
     # Note: In production, you would selectively merge or replace the docker-compose.yml
     # For now, we'll keep the existing one and add our enhancements gradually
-    
+
     validate_step "Enhanced configs deployment" "test -f /home/mills/docker-compose-enhanced-production.yml"
 }
 
 # Deploy caching layer
 deploy_caching_layer() {
     progress "Deploying Redis caching layer"
-    
+
     # Start Redis cache if not already running
     if ! ${DOCKER} ps | grep -q "redis-cache"; then
         log "Starting Redis cache container..."
@@ -129,17 +129,17 @@ deploy_caching_layer() {
             -v /home/mills/collections/redis/redis-enhanced.conf:/usr/local/etc/redis/redis.conf:ro \
             redis:7-alpine redis-server /usr/local/etc/redis/redis.conf || warning "Redis deployment may need manual intervention"
     fi
-    
+
     validate_step "Redis caching" "${DOCKER} ps | grep -q redis-cache"
 }
 
 # Deploy Nginx gateway
 deploy_nginx_gateway() {
     progress "Deploying Nginx monitoring gateway"
-    
+
     # Create nginx cache directories
     mkdir -p /var/cache/nginx/{grafana,prometheus,static}
-    
+
     # Start Nginx gateway if not already running
     if ! ${DOCKER} ps | grep -q "nginx-monitoring-gateway"; then
         log "Starting Nginx monitoring gateway..."
@@ -156,18 +156,18 @@ deploy_nginx_gateway() {
             -v /home/mills/collections/ssl-certs:/etc/ssl/nginx:ro \
             nginx:alpine || warning "Nginx gateway deployment may need manual intervention"
     fi
-    
+
     validate_step "Nginx gateway" "${DOCKER} ps | grep -q nginx-monitoring-gateway"
 }
 
 # Deploy enhanced MySQL exporter
 deploy_mysql_exporter() {
     progress "Deploying enhanced MySQL exporter"
-    
+
     # Stop existing mysql-exporter if running
     ${DOCKER} stop mysql-exporter 2>/dev/null || true
     ${DOCKER} rm mysql-exporter 2>/dev/null || true
-    
+
     # Start enhanced MySQL exporter
     log "Starting enhanced MySQL exporter..."
     ${DOCKER} run -d \
@@ -181,14 +181,14 @@ deploy_mysql_exporter() {
         -v /home/mills/collections/mysql-exporter/.my.cnf:/root/.my.cnf:ro \
         -e DATA_SOURCE_NAME="exporter:Mon1t0r1ng_Exp0rt3r_2025!@tcp(464416e7dc23_zabbix-mysql:3306)/" \
         prom/mysqld-exporter:latest || warning "MySQL exporter deployment may need manual intervention"
-    
+
     validate_step "MySQL exporter" "${DOCKER} ps | grep -q mysql-exporter-enhanced"
 }
 
 # Deploy health monitoring
 deploy_health_monitoring() {
     progress "Deploying health monitoring service"
-    
+
     # Start health monitor
     if ! ${DOCKER} ps | grep -q "health-monitor"; then
         log "Starting health monitoring service..."
@@ -204,68 +204,68 @@ deploy_health_monitoring() {
             -e SLACK_WEBHOOK_URL="${SLACK_WEBHOOK_URL}" \
             alpine:latest sh -c "apk add --no-cache bash curl jq docker-cli && while true; do /app/health_check.sh; sleep 60; done" || warning "Health monitor deployment may need manual intervention"
     fi
-    
+
     validate_step "Health monitoring" "${DOCKER} ps | grep -q health-monitor"
 }
 
 # Update Prometheus configuration
 update_prometheus_config() {
     progress "Updating Prometheus configuration with enhanced rules"
-    
+
     # Backup existing Prometheus config
     if [[ -f "/home/mills/collections/prometheus/prometheus.yml" ]]; then
         cp /home/mills/collections/prometheus/prometheus.yml "$BACKUP_DIR/prometheus-original.yml"
     fi
-    
+
     # Add enhanced recording and alerting rules to Prometheus config
     log "Adding enhanced rules to Prometheus configuration..."
-    
+
     # Reload Prometheus configuration
     if ${DOCKER} ps | grep -q prometheus; then
         ${DOCKER} exec prometheus-enhanced kill -HUP 1 2>/dev/null || ${DOCKER} restart prometheus 2>/dev/null || warning "Prometheus reload may need manual intervention"
     fi
-    
+
     validate_step "Prometheus configuration" "test -f /home/mills/collections/prometheus/enhanced-recording-rules.yml"
 }
 
 # Update Grafana configuration
 update_grafana_config() {
     progress "Updating Grafana with enhanced configuration"
-    
+
     # Backup existing Grafana config
     if ${DOCKER} exec grafana test -f /etc/grafana/grafana.ini 2>/dev/null; then
         ${DOCKER} cp grafana:/etc/grafana/grafana.ini "$BACKUP_DIR/grafana-original.ini" 2>/dev/null || true
     fi
-    
+
     # Copy enhanced configuration
     ${DOCKER} cp /home/mills/collections/grafana/grafana-enhanced.ini grafana:/etc/grafana/grafana.ini 2>/dev/null || warning "Grafana config update may need manual intervention"
-    
+
     # Restart Grafana to apply changes
     ${DOCKER} restart grafana 2>/dev/null || warning "Grafana restart may need manual intervention"
-    
+
     validate_step "Grafana configuration" "test -f /home/mills/collections/grafana/grafana-enhanced.ini"
 }
 
 # Deploy network security
 deploy_network_security() {
     progress "Deploying network security measures"
-    
+
     # Execute network security configuration
     if [[ -x "/home/mills/collections/network-security/firewall-rules.sh" ]]; then
         log "Applying network security rules..."
         /home/mills/collections/network-security/firewall-rules.sh || warning "Network security deployment may need manual intervention"
     fi
-    
+
     validate_step "Network security" "iptables -L DOCKER-USER >/dev/null 2>&1"
 }
 
 # Validate data pipeline
 validate_data_pipeline() {
     progress "Validating end-to-end data pipeline"
-    
+
     local validation_passed=0
     local validation_total=5
-    
+
     # Test Telegraf metrics collection
     log "Testing Telegraf metrics collection..."
     if curl -s http://localhost:9273/metrics | grep -q "^# HELP"; then
@@ -274,7 +274,7 @@ validate_data_pipeline() {
     else
         error "Telegraf metrics collection failed"
     fi
-    
+
     # Test InfluxDB connectivity
     log "Testing InfluxDB connectivity..."
     if curl -s http://localhost:8086/ping | grep -q "X-Influxdb-Version"; then
@@ -283,7 +283,7 @@ validate_data_pipeline() {
     else
         error "InfluxDB connectivity failed"
     fi
-    
+
     # Test Prometheus targets
     log "Testing Prometheus targets..."
     if curl -s http://localhost:9090/api/v1/targets | jq -e '.data.activeTargets[]' &>/dev/null; then
@@ -293,7 +293,7 @@ validate_data_pipeline() {
     else
         error "Prometheus targets validation failed"
     fi
-    
+
     # Test Grafana health
     log "Testing Grafana health..."
     if curl -s http://localhost:3000/api/health | jq -e '.database' &>/dev/null; then
@@ -302,7 +302,7 @@ validate_data_pipeline() {
     else
         error "Grafana health check failed"
     fi
-    
+
     # Test Alertmanager
     log "Testing Alertmanager..."
     if curl -s http://localhost:9093/api/v1/status | jq -e '.data' &>/dev/null; then
@@ -311,10 +311,10 @@ validate_data_pipeline() {
     else
         error "Alertmanager validation failed"
     fi
-    
+
     local pipeline_percentage=$((validation_passed * 100 / validation_total))
     info "Data pipeline validation: $validation_passed/$validation_total tests passed (${pipeline_percentage}%)"
-    
+
     if [[ $validation_passed -ge 4 ]]; then
         return 0
     else
@@ -325,24 +325,24 @@ validate_data_pipeline() {
 # Performance testing
 run_performance_tests() {
     progress "Running performance tests"
-    
+
     # Test dashboard response times
     log "Testing Grafana dashboard response time..."
     local grafana_response_time=$(curl -w "%{time_total}" -s -o /dev/null http://localhost:3000/api/health 2>/dev/null || echo "999")
-    
+
     if (( $(echo "$grafana_response_time < 2.0" | bc -l) )); then
         success "Grafana response time: ${grafana_response_time}s (target: <2s)"
     else
         warning "Grafana response time: ${grafana_response_time}s (slower than target)"
     fi
-    
+
     # Test Prometheus query performance
     log "Testing Prometheus query performance..."
     local start_time=$(date +%s%3N)
     curl -s "http://localhost:9090/api/v1/query?query=up" &>/dev/null || true
     local end_time=$(date +%s%3N)
     local prometheus_response_time=$((end_time - start_time))
-    
+
     if [[ $prometheus_response_time -lt 1000 ]]; then
         success "Prometheus query response time: ${prometheus_response_time}ms"
     else
@@ -353,9 +353,9 @@ run_performance_tests() {
 # Generate comprehensive validation report
 generate_validation_report() {
     progress "Generating comprehensive validation report"
-    
+
     local deployment_success_rate=$((SUCCESS_STEPS * 100 / TOTAL_STEPS))
-    
+
     cat > "$VALIDATION_RESULTS" << EOF
 {
     "deployment_timestamp": "$(date -Iseconds)",
@@ -390,19 +390,19 @@ generate_validation_report() {
     "log_file": "$DEPLOYMENT_LOG"
 }
 EOF
-    
+
     success "Validation report generated: $VALIDATION_RESULTS"
 }
 
 # Create deployment summary
 create_deployment_summary() {
     local summary_file="/home/mills/enhancement-deployment-summary-${TIMESTAMP}.md"
-    
+
     cat > "$summary_file" << EOF
 # Infrastructure Enhancement Deployment Summary
 
-**Deployment Date:** $(date)  
-**Deployment ID:** ${TIMESTAMP}  
+**Deployment Date:** $(date)
+**Deployment ID:** ${TIMESTAMP}
 **Success Rate:** ${SUCCESS_STEPS}/${TOTAL_STEPS} steps completed successfully
 
 ## 🎯 Deployment Overview
@@ -474,10 +474,10 @@ ${DOCKER} compose up -d
 \`\`\`
 
 ---
-*Enhancement deployment completed successfully*  
+*Enhancement deployment completed successfully*
 *Infrastructure is now running with enterprise-grade monitoring and security*
 EOF
-    
+
     success "Deployment summary created: $summary_file"
 }
 
@@ -485,17 +485,17 @@ EOF
 main() {
     log "🚀 Starting comprehensive infrastructure enhancement deployment"
     log "Deployment ID: $TIMESTAMP"
-    
+
     # Pre-deployment checks
     if ! command -v ${DOCKER} &> /dev/null; then
         error "Docker is not installed or not in PATH"
         exit 1
     fi
-    
+
     if ! command -v jq &> /dev/null; then
         warning "jq not installed - some validations may be limited"
     fi
-    
+
     # Execute deployment steps
     create_backup
     deploy_enhanced_configs
@@ -506,22 +506,22 @@ main() {
     update_prometheus_config
     update_grafana_config
     deploy_network_security
-    
+
     # Validation and testing
     if validate_data_pipeline; then
         success "Data pipeline validation passed"
     else
         warning "Data pipeline validation had issues - check logs"
     fi
-    
+
     run_performance_tests
     generate_validation_report
     create_deployment_summary
-    
+
     # Final status
     log "🎉 Enhancement deployment completed!"
     log "📊 Success rate: ${SUCCESS_STEPS}/${TOTAL_STEPS} steps"
-    
+
     if [[ $FAILED_STEPS -eq 0 ]]; then
         success "All deployment steps completed successfully!"
         log "🔥 Infrastructure is now running with enterprise-grade enhancements"
@@ -532,12 +532,12 @@ main() {
         error "Deployment completed with significant issues ($FAILED_STEPS failed steps)"
         log "🚨 Manual intervention may be required - check logs and validation report"
     fi
-    
+
     log "📁 Deployment artifacts:"
     log "   - Log: $DEPLOYMENT_LOG"
     log "   - Validation: $VALIDATION_RESULTS"
     log "   - Backup: $BACKUP_DIR"
-    
+
     # Return appropriate exit code
     if [[ $FAILED_STEPS -lt 3 ]]; then
         return 0

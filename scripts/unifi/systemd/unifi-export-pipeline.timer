@@ -1,0 +1,10 @@
+[Unit]
+Description=Run UniFi Export Pipeline daily
+
+[Timer]
+OnCalendar=*-*-* 03:45:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

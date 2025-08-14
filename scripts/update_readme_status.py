@@ -69,7 +69,11 @@ def get_docker_service_status() -> Tuple[int, int, List[str]]:
                 if not in_services:
                     continue
                 # Detect new service block (two-space indent, name:)
-                if line.startswith("  ") and not line.startswith("    ") and line.strip().endswith(":"):
+                if (
+                    line.startswith("  ")
+                    and not line.startswith("    ")
+                    and line.strip().endswith(":")
+                ):
                     name = line.strip()[:-1]
                     current_service = name
                     # Initialize as not having profiles
@@ -96,7 +100,7 @@ def get_docker_service_status() -> Tuple[int, int, List[str]]:
                         "inspect",
                         cid,
                         "--format",
-                        "{{.Name}}:{{.State.Status}}:{{ index .Config.Labels \"com.docker.compose.service\" }}",
+                        '{{.Name}}:{{.State.Status}}:{{ index .Config.Labels "com.docker.compose.service" }}',
                     ],
                     capture_output=True,
                     text=True,
@@ -167,7 +171,7 @@ def get_docker_service_status() -> Tuple[int, int, List[str]]:
 
         failing_count = total_services - healthy_count
         return healthy_count, failing_count, unhealthy_services
-        
+
     except subprocess.CalledProcessError as e:
         print(f"Error getting Docker status: {e}", file=sys.stderr)
         return 0, 0, ["Docker command failed"]
@@ -187,21 +191,23 @@ def get_alertmanager_alerts() -> Tuple[int, List[str]]:
         response = requests.get("http://localhost:9093/api/v1/alerts", timeout=5)
         if response.status_code == 200:
             alerts_data = response.json()
-            alerts = alerts_data.get('data', [])
-            
+            alerts = alerts_data.get("data", [])
+
             critical_alerts = []
             for alert in alerts:
-                if alert.get('state') == 'active':
-                    severity = alert.get('labels', {}).get('severity', 'unknown')
-                    alertname = alert.get('labels', {}).get('alertname', 'Unknown Alert')
-                    
-                    if severity.lower() in ['critical', 'high']:
+                if alert.get("state") == "active":
+                    severity = alert.get("labels", {}).get("severity", "unknown")
+                    alertname = alert.get("labels", {}).get(
+                        "alertname", "Unknown Alert"
+                    )
+
+                    if severity.lower() in ["critical", "high"]:
                         critical_alerts.append(f"{alertname} ({severity})")
-            
+
             return len(critical_alerts), critical_alerts
         else:
             return 0, []
-            
+
     except requests.RequestException:
         # Alertmanager might not be running or accessible
         return 0, []
@@ -210,7 +216,9 @@ def get_alertmanager_alerts() -> Tuple[int, List[str]]:
         return 0, []
 
 
-def determine_overall_health(healthy_services: int, failing_services: int, critical_alerts: int) -> str:
+def determine_overall_health(
+    healthy_services: int, failing_services: int, critical_alerts: int
+) -> str:
     """Determine overall stack health status"""
     if failing_services == 0 and critical_alerts == 0:
         return "🟢 Healthy"
@@ -228,16 +236,16 @@ def generate_status_table(
     failing_services: int,
     timestamp: str,
     alert_details: List[str] = None,
-    unhealthy_details: List[str] = None
+    unhealthy_details: List[str] = None,
 ) -> str:
     """Generate the status table markup"""
-    
+
     # Format alert status
     if critical_alerts == 0:
         alert_status = "✅ None"
     else:
         alert_status = f"🚨 {critical_alerts}"
-    
+
     # Base table
     table = f"""| Key Metric       | Value             |
 |------------------|------------------|
@@ -245,27 +253,29 @@ def generate_status_table(
 | Critical Alerts  | {alert_status} |
 | Failing Services | {failing_services} |
 | Last Check       | {timestamp} |"""
-    
+
     # Add details if there are issues
     details = []
-    
+
     if alert_details and critical_alerts > 0:
         details.append("\n**Active Critical Alerts:**")
         for alert in alert_details[:5]:  # Limit to 5 alerts
             details.append(f"- {alert}")
-    
+
     if unhealthy_details and failing_services > 0:
         details.append("\n**Failing Services:**")
         for service in unhealthy_details[:5]:  # Limit to 5 services
             details.append(f"- {service}")
-    
+
     if details:
         table += "\n" + "\n".join(details)
-    
+
     return table
 
 
-def manage_github_issues(failing_count: int, unhealthy_services: List[str], critical_alerts: List[str]):
+def manage_github_issues(
+    failing_count: int, unhealthy_services: List[str], critical_alerts: List[str]
+):
     """Manage GitHub issues via scripts/github_api.sh (no secrets printed)."""
     try:
         import subprocess
@@ -276,24 +286,31 @@ def manage_github_issues(failing_count: int, unhealthy_services: List[str], crit
         gh_api = "/home/mills/scripts/github_api.sh"
 
         # Ensure auth is configured; ignore output
-        subprocess.run(["/home/mills/scripts/github_auth.sh"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            ["/home/mills/scripts/github_auth.sh"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
         if failing_count > 2 or len(critical_alerts) > 0:
             title = f"🚨 Infrastructure Health Alert - {failing_count} services failing"
             body = {
                 "title": title,
-                "body": "\n".join([
-                    "## Infrastructure Health Alert",
-                    f"Failing services: {failing_count}",
-                    "",
-                    "### Failing Services",
-                    *[f"- {s}" for s in unhealthy_services[:10]],
-                    "",
-                    "### Critical Alerts",
-                    *[f"- {a}" for a in critical_alerts[:10]],
-                    "",
-                    "*Automated alert from Maelstrom*",
-                ]),
+                "body": "\n".join(
+                    [
+                        "## Infrastructure Health Alert",
+                        f"Failing services: {failing_count}",
+                        "",
+                        "### Failing Services",
+                        *[f"- {s}" for s in unhealthy_services[:10]],
+                        "",
+                        "### Critical Alerts",
+                        *[f"- {a}" for a in critical_alerts[:10]],
+                        "",
+                        "*Automated alert from Maelstrom*",
+                    ]
+                ),
                 "labels": ["infrastructure", "auto-generated", "urgent"],
             }
 
@@ -309,7 +326,11 @@ def manage_github_issues(failing_count: int, unhealthy_services: List[str], crit
         elif failing_count == 0 and len(critical_alerts) == 0:
             # List open infra issues
             proc = subprocess.run(
-                ["bash", "-lc", f"'{gh_api}' -X GET '{api_base}/issues?state=open&labels=infrastructure,auto-generated'"],
+                [
+                    "bash",
+                    "-lc",
+                    f"'{gh_api}' -X GET '{api_base}/issues?state=open&labels=infrastructure,auto-generated'",
+                ],
                 check=False,
                 capture_output=True,
             )
@@ -323,14 +344,22 @@ def manage_github_issues(failing_count: int, unhealthy_services: List[str], crit
                     continue
                 comment = {"body": "✅ System healthy. Auto-closing by Maelstrom."}
                 subprocess.run(
-                    ["bash", "-lc", f"'{gh_api}' -X POST '{api_base}/issues/{number}/comments' --data @-"],
+                    [
+                        "bash",
+                        "-lc",
+                        f"'{gh_api}' -X POST '{api_base}/issues/{number}/comments' --data @-",
+                    ],
                     input=_json_for_api.dumps(comment).encode(),
                     check=False,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
                 subprocess.run(
-                    ["bash", "-lc", f"'{gh_api}' -X PATCH '{api_base}/issues/{number}' --data @-"],
+                    [
+                        "bash",
+                        "-lc",
+                        f"'{gh_api}' -X PATCH '{api_base}/issues/{number}' --data @-",
+                    ],
                     input=_json_for_api.dumps({"state": "closed"}).encode(),
                     check=False,
                     stdout=subprocess.DEVNULL,
@@ -347,16 +376,18 @@ def update_readme_status():
         # Get current status information
         healthy_count, failing_count, unhealthy_services = get_docker_service_status()
         critical_alert_count, critical_alerts = get_alertmanager_alerts()
-        
+
         # Determine overall health
-        overall_health = determine_overall_health(healthy_count, failing_count, critical_alert_count)
-        
+        overall_health = determine_overall_health(
+            healthy_count, failing_count, critical_alert_count
+        )
+
         # Generate timestamp
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        
+
         # GitHub issue management based on health status
         manage_github_issues(failing_count, unhealthy_services, critical_alerts)
-        
+
         # Generate status table
         status_table = generate_status_table(
             overall_health,
@@ -364,42 +395,44 @@ def update_readme_status():
             failing_count,
             timestamp,
             critical_alerts,
-            unhealthy_services
+            unhealthy_services,
         )
-        
+
         # Read current README.md
         readme_path = "/home/mills/README.md"
         try:
-            with open(readme_path, 'r') as f:
+            with open(readme_path, "r") as f:
                 readme_content = f.read()
         except FileNotFoundError:
             print(f"README.md not found at {readme_path}", file=sys.stderr)
             return False
-        
+
         # Find and replace the status section
-        status_pattern = r'(<!-- STATUS-BEGIN -->).*?(<!-- STATUS-END -->)'
-        replacement = f'<!-- STATUS-BEGIN -->\n{status_table}\n<!-- STATUS-END -->'
-        
+        status_pattern = r"(<!-- STATUS-BEGIN -->).*?(<!-- STATUS-END -->)"
+        replacement = f"<!-- STATUS-BEGIN -->\n{status_table}\n<!-- STATUS-END -->"
+
         if re.search(status_pattern, readme_content, re.DOTALL):
             # Update the status markers section
-            updated_content = re.sub(status_pattern, replacement, readme_content, flags=re.DOTALL)
+            updated_content = re.sub(
+                status_pattern, replacement, readme_content, flags=re.DOTALL
+            )
         else:
             print("Status markers not found in README.md", file=sys.stderr)
             return False
-        
+
         # Write updated content back to README.md
-        with open(readme_path, 'w') as f:
+        with open(readme_path, "w") as f:
             f.write(updated_content)
-        
+
         # Print status summary
         print(f"README.md status updated successfully")
         print(f"Overall Health: {overall_health}")
         print(f"Services: {healthy_count} healthy, {failing_count} failing")
         print(f"Critical Alerts: {critical_alert_count}")
         print(f"Timestamp: {timestamp}")
-        
+
         return True
-        
+
     except Exception as e:
         print(f"Error updating README status: {e}", file=sys.stderr)
         return False

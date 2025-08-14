@@ -23,4 +23,3 @@ else
   echo "Non-interactive auth unavailable. Set GITHUB_OAUTH_* or GITHUB_PAT (or GITHUB_TOKEN in CI)." >&2
   exit 1
 fi
-

@@ -14,7 +14,7 @@ echo "[$(date)] Starting log rotation cleanup..."
 # Rotate auto-recovery logs (keep 7 days)
 find "$LOG_DIR" -name "auto-recovery-*.log" -mtime +$RETENTION_DAYS -delete 2>/dev/null || true
 
-# Rotate health check logs (keep 14 days) 
+# Rotate health check logs (keep 14 days)
 find "$LOG_DIR" -name "health-check-*.log" -mtime +14 -delete 2>/dev/null || true
 
 # Rotate orchestrator logs (keep 30 days)

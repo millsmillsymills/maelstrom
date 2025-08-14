@@ -19,9 +19,9 @@ log() {
 # Backup current configurations
 backup_configs() {
     log "Backing up current configurations..."
-    
+
     mkdir -p "$BACKUP_DIR"
-    
+
     # Backup key configuration files
     cp "$COLLECTIONS_DIR/grafana/grafana.ini" "$BACKUP_DIR/" 2>/dev/null || true
     cp "$COLLECTIONS_DIR/prometheus/prometheus.yml" "$BACKUP_DIR/" 2>/dev/null || true
@@ -29,14 +29,14 @@ backup_configs() {
     cp "$COLLECTIONS_DIR/influxdb/influxdb.conf" "$BACKUP_DIR/" 2>/dev/null || true
     cp "$COLLECTIONS_DIR/redis/redis.conf" "$BACKUP_DIR/" 2>/dev/null || true
     cp "$COLLECTIONS_DIR/nginx/nginx.conf" "$BACKUP_DIR/" 2>/dev/null || true
-    
+
     log "Configuration backup completed: $BACKUP_DIR"
 }
 
 # Deploy Redis caching optimization
 deploy_redis_cache() {
     log "Deploying Redis caching optimization..."
-    
+
     # Copy optimized Redis configuration
     if [[ -f "$COLLECTIONS_DIR/redis/redis-cache.conf" ]]; then
         cp "$COLLECTIONS_DIR/redis/redis-cache.conf" "$COLLECTIONS_DIR/redis/redis.conf"
@@ -44,7 +44,7 @@ deploy_redis_cache() {
     else
         log "WARNING: Redis cache configuration not found"
     fi
-    
+
     # Restart Redis if running
     if ${DOCKER} ps --filter "name=redis" --filter "status=running" --quiet | grep -q .; then
         log "Restarting Redis to apply new configuration..."
@@ -57,7 +57,7 @@ deploy_redis_cache() {
 # Deploy Nginx reverse proxy optimization
 deploy_nginx_cache() {
     log "Deploying Nginx caching optimization..."
-    
+
     # Copy optimized Nginx configuration
     if [[ -f "$COLLECTIONS_DIR/nginx/nginx-cache.conf" ]]; then
         cp "$COLLECTIONS_DIR/nginx/nginx-cache.conf" "$COLLECTIONS_DIR/nginx/nginx.conf"
@@ -65,11 +65,11 @@ deploy_nginx_cache() {
     else
         log "WARNING: Nginx cache configuration not found"
     fi
-    
+
     # Create cache directories
     mkdir -p /var/cache/nginx/{grafana,prometheus,general}
     chown -R 101:101 /var/cache/nginx 2>/dev/null || true
-    
+
     # Restart Nginx if running
     if ${DOCKER} ps --filter "name=nginx" --filter "status=running" --quiet | grep -q .; then
         log "Restarting Nginx to apply new configuration..."
@@ -82,7 +82,7 @@ deploy_nginx_cache() {
 # Deploy InfluxDB optimization
 deploy_influxdb_optimization() {
     log "Deploying InfluxDB performance optimization..."
-    
+
     # Copy optimized InfluxDB configuration
     if [[ -f "$COLLECTIONS_DIR/influxdb/influxdb-optimized.conf" ]]; then
         cp "$COLLECTIONS_DIR/influxdb/influxdb-optimized.conf" "$COLLECTIONS_DIR/influxdb/influxdb.conf"
@@ -90,16 +90,16 @@ deploy_influxdb_optimization() {
     else
         log "WARNING: InfluxDB optimization configuration not found"
     fi
-    
+
     # Restart InfluxDB if running
     if ${DOCKER} ps --filter "name=influxdb" --filter "status=running" --quiet | grep -q .; then
         log "Restarting InfluxDB to apply new configuration..."
         ${DOCKER} restart influxdb || true
-        
+
         # Wait for InfluxDB to come back online
         log "Waiting for InfluxDB to restart..."
         sleep 30
-        
+
         # Verify InfluxDB is responding
         local attempts=0
         while [[ $attempts -lt 12 ]]; do
@@ -110,7 +110,7 @@ deploy_influxdb_optimization() {
             sleep 5
             ((attempts++))
         done
-        
+
         if [[ $attempts -eq 12 ]]; then
             log "WARNING: InfluxDB may not have restarted properly"
         fi
@@ -122,7 +122,7 @@ deploy_influxdb_optimization() {
 # Deploy Telegraf optimization
 deploy_telegraf_optimization() {
     log "Deploying Telegraf performance optimization..."
-    
+
     # Copy optimized Telegraf configuration
     if [[ -f "$COLLECTIONS_DIR/telegraf/telegraf-optimized.conf" ]]; then
         cp "$COLLECTIONS_DIR/telegraf/telegraf-optimized.conf" "$COLLECTIONS_DIR/telegraf/telegraf.conf"
@@ -130,12 +130,12 @@ deploy_telegraf_optimization() {
     else
         log "WARNING: Telegraf optimization configuration not found"
     fi
-    
+
     # Restart Telegraf if running
     if ${DOCKER} ps --filter "name=telegraf" --filter "status=running" --quiet | grep -q .; then
         log "Restarting Telegraf to apply new configuration..."
         ${DOCKER} restart telegraf || true
-        
+
         # Wait and verify Telegraf metrics endpoint
         sleep 15
         if curl -s http://localhost:9273/metrics | head -5 | grep -q "^#"; then
@@ -151,33 +151,33 @@ deploy_telegraf_optimization() {
 # Deploy Prometheus recording rules
 deploy_prometheus_rules() {
     log "Deploying Prometheus performance recording rules..."
-    
+
     # Copy recording rules
     if [[ -f "$COLLECTIONS_DIR/prometheus/recording_rules.yml" ]]; then
         log "Prometheus recording rules already deployed"
     else
         log "WARNING: Prometheus recording rules not found"
     fi
-    
+
     # Copy SLA/SLO rules
     if [[ -f "$COLLECTIONS_DIR/prometheus/sla_slo_rules.yml" ]]; then
         log "SLA/SLO tracking rules already deployed"
     else
         log "WARNING: SLA/SLO rules not found"
     fi
-    
+
     # Copy anomaly detection rules
     if [[ -f "$COLLECTIONS_DIR/prometheus/anomaly_detection_rules.yml" ]]; then
         log "Anomaly detection rules already deployed"
     else
         log "WARNING: Anomaly detection rules not found"
     fi
-    
+
     # Restart Prometheus if running
     if ${DOCKER} ps --filter "name=prometheus" --filter "status=running" --quiet | grep -q .; then
         log "Restarting Prometheus to apply new rules..."
         ${DOCKER} restart prometheus || true
-        
+
         # Wait and verify Prometheus is responding
         sleep 20
         if curl -s http://localhost:9090/-/healthy &>/dev/null; then
@@ -193,19 +193,19 @@ deploy_prometheus_rules() {
 # Deploy Grafana optimizations
 deploy_grafana_optimization() {
     log "Deploying Grafana performance optimization..."
-    
+
     # Check if Grafana OAuth config exists
     if [[ -f "$COLLECTIONS_DIR/grafana/grafana-oauth.ini" ]]; then
         log "Grafana OAuth configuration already deployed"
     else
         log "WARNING: Grafana OAuth configuration not found"
     fi
-    
+
     # Restart Grafana if running to pick up any changes
     if ${DOCKER} ps --filter "name=grafana" --filter "status=running" --quiet | grep -q .; then
         log "Restarting Grafana to apply optimizations..."
         ${DOCKER} restart grafana || true
-        
+
         # Wait and verify Grafana is responding
         sleep 15
         if curl -s http://localhost:3000/api/health | grep -q "ok"; then
@@ -221,12 +221,12 @@ deploy_grafana_optimization() {
 # Validate deployment
 validate_deployment() {
     log "Validating performance optimization deployment..."
-    
+
     local validation_errors=0
-    
+
     # Check service health
     local services=("grafana" "prometheus" "influxdb" "telegraf")
-    
+
     for service in "${services[@]}"; do
         if ${DOCKER} ps --filter "name=$service" --filter "status=running" --quiet | grep -q .; then
             log "✓ $service is running"
@@ -235,10 +235,10 @@ validate_deployment() {
             ((validation_errors++))
         fi
     done
-    
+
     # Check specific endpoints
     log "Checking service endpoints..."
-    
+
     # Grafana health check
     if curl -s http://localhost:3000/api/health | grep -q "ok"; then
         log "✓ Grafana endpoint responding"
@@ -246,7 +246,7 @@ validate_deployment() {
         log "✗ Grafana endpoint not responding"
         ((validation_errors++))
     fi
-    
+
     # Prometheus health check
     if curl -s http://localhost:9090/-/healthy &>/dev/null; then
         log "✓ Prometheus endpoint responding"
@@ -254,7 +254,7 @@ validate_deployment() {
         log "✗ Prometheus endpoint not responding"
         ((validation_errors++))
     fi
-    
+
     # InfluxDB health check
     if curl -s http://localhost:8086/ping &>/dev/null; then
         log "✓ InfluxDB endpoint responding"
@@ -262,7 +262,7 @@ validate_deployment() {
         log "✗ InfluxDB endpoint not responding"
         ((validation_errors++))
     fi
-    
+
     # Telegraf metrics check
     if curl -s http://localhost:9273/metrics | head -5 | grep -q "^#"; then
         log "✓ Telegraf metrics endpoint responding"
@@ -270,13 +270,13 @@ validate_deployment() {
         log "✗ Telegraf metrics endpoint not responding"
         ((validation_errors++))
     fi
-    
+
     # Performance metrics validation
     log "Checking performance metrics..."
-    
+
     # Check if recording rules are working (wait a bit for them to populate)
     sleep 30
-    
+
     local recording_rules_count=$(curl -s http://localhost:9090/api/v1/label/__name__/values 2>/dev/null | grep -c "instance:" || echo "0")
     if [[ $recording_rules_count -gt 0 ]]; then
         log "✓ Recording rules are generating metrics ($recording_rules_count rules active)"
@@ -284,7 +284,7 @@ validate_deployment() {
         log "✗ Recording rules may not be working properly"
         ((validation_errors++))
     fi
-    
+
     # Summary
     if [[ $validation_errors -eq 0 ]]; then
         log "✅ All performance optimizations deployed successfully"
@@ -298,7 +298,7 @@ validate_deployment() {
 # Rollback function
 rollback_deployment() {
     log "Rolling back performance optimizations..."
-    
+
     if [[ -d "$BACKUP_DIR" ]]; then
         # Restore configurations
         cp "$BACKUP_DIR/grafana.ini" "$COLLECTIONS_DIR/grafana/" 2>/dev/null || true
@@ -307,14 +307,14 @@ rollback_deployment() {
         cp "$BACKUP_DIR/influxdb.conf" "$COLLECTIONS_DIR/influxdb/" 2>/dev/null || true
         cp "$BACKUP_DIR/redis.conf" "$COLLECTIONS_DIR/redis/" 2>/dev/null || true
         cp "$BACKUP_DIR/nginx.conf" "$COLLECTIONS_DIR/nginx/" 2>/dev/null || true
-        
+
         # Restart services
         for service in grafana prometheus influxdb telegraf redis nginx; do
             if ${DOCKER} ps --filter "name=$service" --filter "status=running" --quiet | grep -q .; then
                 ${DOCKER} restart "$service" || true
             fi
         done
-        
+
         log "Rollback completed using backup: $BACKUP_DIR"
     else
         log "ERROR: No backup directory found for rollback"
@@ -325,13 +325,13 @@ rollback_deployment() {
 # Generate performance optimization report
 generate_optimization_report() {
     log "Generating performance optimization report..."
-    
+
     local report_file="/home/mills/performance-optimization-report-$(date +%Y%m%d_%H%M%S).md"
-    
+
     cat > "$report_file" << EOF
 # Performance Optimization Deployment Report
 
-**Deployment Date:** $(date '+%Y-%m-%d %H:%M:%S')  
+**Deployment Date:** $(date '+%Y-%m-%d %H:%M:%S')
 **Monitoring Stack Performance Enhancement**
 
 ## Deployment Summary
@@ -383,7 +383,7 @@ EOF
             echo "- **$service**: Performance-optimized configuration applied" >> "$report_file"
         fi
     done
-    
+
     cat >> "$report_file" << 'EOF'
 
 ### 🎯 Performance Validation Results
@@ -399,7 +399,7 @@ EOF
             echo "- **$service**: ❌ Not running or not responding" >> "$report_file"
         fi
     done
-    
+
     cat >> "$report_file" << 'EOF'
 
 #### Endpoint Verification
@@ -443,7 +443,7 @@ For performance issues or questions:
 4. Use rollback procedure if critical issues arise
 
 ---
-*Report generated by Performance Optimization Deployment*  
+*Report generated by Performance Optimization Deployment*
 *Next performance review scheduled: 1 week from deployment*
 EOF
 
@@ -476,11 +476,11 @@ EOF
 # Main execution
 main() {
     local action="${1:---deploy}"
-    
+
     case "$action" in
         --deploy|"")
             log "Starting performance optimization deployment..."
-            
+
             backup_configs
             deploy_redis_cache
             deploy_nginx_cache
@@ -488,7 +488,7 @@ main() {
             deploy_telegraf_optimization
             deploy_prometheus_rules
             deploy_grafana_optimization
-            
+
             if validate_deployment; then
                 generate_optimization_report
                 log "✅ Performance optimization deployment completed successfully"

@@ -1,0 +1,17 @@
+[Unit]
+Description=Check UniFi Export Status and Alert if Failing
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h
+Environment=SLACK_WEBHOOK_URL=
+ExecStart=%h/scripts/unifi/unifi_status_check.py --export-dir output/unifi/last7d --max-age-hours 12 --min-events 1
+TimeoutStartSec=120
+ProtectSystem=full
+ProtectHome=no
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

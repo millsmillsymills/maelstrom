@@ -42,11 +42,11 @@ test_result() {
     local test_name="$1"
     local status="$2"  # PASS, FAIL, WARN, SKIP
     local details="$3"
-    
+
     TEST_RESULTS["$test_name"]="$status"
     TEST_DETAILS["$test_name"]="$details"
     ((TOTAL_TESTS++))
-    
+
     case "$status" in
         "FAIL")
             ((CRITICAL_FAILURES++))
@@ -68,23 +68,23 @@ test_result() {
 # Test service health
 test_service_health() {
     log "=== Testing Service Health ==="
-    
+
     for service in "${!SERVICE_ENDPOINTS[@]}"; do
         local endpoint="${SERVICE_ENDPOINTS[$service]}"
-        
+
         # Check if container is running
         if ! ${DOCKER} ps --filter "name=$service" --filter "status=running" --quiet | grep -q .; then
             test_result "service.${service}.running" "FAIL" "Container not running"
             continue
         fi
-        
+
         # Test endpoint responsiveness
         if timeout 10 curl -s -f "$endpoint" &>/dev/null; then
             test_result "service.${service}.endpoint" "PASS" "Endpoint responding at $endpoint"
         else
             test_result "service.${service}.endpoint" "FAIL" "Endpoint not responding at $endpoint"
         fi
-        
+
         # Test container health
         local health_status=$(${DOCKER} inspect "$service" --format='{{.State.Health.Status}}' 2>/dev/null || echo "none")
         if [[ "$health_status" == "healthy" ]]; then
@@ -100,7 +100,7 @@ test_service_health() {
 # Test data collection pipeline
 test_data_collection() {
     log "=== Testing Data Collection Pipeline ==="
-    
+
     # Test Telegraf metrics collection
     if curl -s http://localhost:9273/metrics | grep -q "^# HELP"; then
         local metric_count=$(curl -s http://localhost:9273/metrics | grep -c "^# HELP")
@@ -108,11 +108,11 @@ test_data_collection() {
     else
         test_result "data.telegraf.metrics" "FAIL" "Telegraf metrics endpoint not responding"
     fi
-    
+
     # Test InfluxDB data ingestion
     if ${DOCKER} exec influxdb influx -execute 'SHOW DATABASES' 2>/dev/null | grep -q "telegraf"; then
         test_result "data.influxdb.database" "PASS" "InfluxDB telegraf database exists"
-        
+
         # Test recent data
         local recent_points=$(${DOCKER} exec influxdb influx -database telegraf -execute 'SELECT COUNT(*) FROM cpu WHERE time > now() - 5m' 2>/dev/null | tail -1 || echo "0")
         if [[ "$recent_points" =~ ^[0-9]+$ ]] && [[ $recent_points -gt 0 ]]; then
@@ -123,12 +123,12 @@ test_data_collection() {
     else
         test_result "data.influxdb.database" "FAIL" "InfluxDB telegraf database not found"
     fi
-    
+
     # Test Prometheus scraping
     if curl -s http://localhost:9090/api/v1/targets | jq -e '.data.activeTargets[]' &>/dev/null; then
         local active_targets=$(curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets | length')
         test_result "data.prometheus.targets" "PASS" "Prometheus has $active_targets active targets"
-        
+
         # Check target health
         local healthy_targets=$(curl -s http://localhost:9090/api/v1/targets | jq '[.data.activeTargets[] | select(.health == "up")] | length')
         local total_targets=$(curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets | length')
@@ -145,12 +145,12 @@ test_data_collection() {
 # Test alerting system
 test_alerting_system() {
     log "=== Testing Alerting System ==="
-    
+
     # Test Prometheus rules
     if curl -s http://localhost:9090/api/v1/rules | jq -e '.data.groups[]' &>/dev/null; then
         local rule_groups=$(curl -s http://localhost:9090/api/v1/rules | jq '.data.groups | length')
         test_result "alerting.prometheus.rules" "PASS" "Prometheus has $rule_groups rule groups loaded"
-        
+
         # Check for recording rules
         local recording_rules=$(curl -s http://localhost:9090/api/v1/rules | jq '[.data.groups[].rules[] | select(.type == "recording")] | length')
         if [[ $recording_rules -gt 0 ]]; then
@@ -158,7 +158,7 @@ test_alerting_system() {
         else
             test_result "alerting.prometheus.recording" "WARN" "No recording rules found"
         fi
-        
+
         # Check for alerting rules
         local alerting_rules=$(curl -s http://localhost:9090/api/v1/rules | jq '[.data.groups[].rules[] | select(.type == "alerting")] | length')
         if [[ $alerting_rules -gt 0 ]]; then
@@ -169,11 +169,11 @@ test_alerting_system() {
     else
         test_result "alerting.prometheus.rules" "FAIL" "Prometheus rules API not responding"
     fi
-    
+
     # Test Alertmanager
     if curl -s http://localhost:9093/api/v1/status | jq -e '.data' &>/dev/null; then
         test_result "alerting.alertmanager.status" "PASS" "Alertmanager API responding"
-        
+
         # Check configuration
         if curl -s http://localhost:9093/api/v1/status | jq -e '.data.configYAML' &>/dev/null; then
             test_result "alerting.alertmanager.config" "PASS" "Alertmanager configuration loaded"
@@ -183,7 +183,7 @@ test_alerting_system() {
     else
         test_result "alerting.alertmanager.status" "FAIL" "Alertmanager API not responding"
     fi
-    
+
     # Test current alerts
     local active_alerts=$(curl -s http://localhost:9093/api/v1/alerts | jq '[.data[] | select(.status.state == "active")] | length' 2>/dev/null || echo "0")
     if [[ $active_alerts -eq 0 ]]; then
@@ -196,7 +196,7 @@ test_alerting_system() {
 # Test Phase 2 enhancements
 test_phase2_enhancements() {
     log "=== Testing Phase 2 Enhancements ==="
-    
+
     # Test OAuth/LDAP configuration
     if [[ -f "/home/mills/collections/grafana/grafana-oauth.ini" ]]; then
         if grep -q "enabled = true" "/home/mills/collections/grafana/grafana-oauth.ini"; then
@@ -207,12 +207,12 @@ test_phase2_enhancements() {
     else
         test_result "phase2.oauth.config" "FAIL" "OAuth configuration missing"
     fi
-    
+
     # Test SSL certificates
     local ssl_certs=$(find /home/mills/collections/ssl-certs -name "*.crt" -not -name "ca.crt" | wc -l)
     if [[ $ssl_certs -gt 0 ]]; then
         test_result "phase2.ssl.certificates" "PASS" "$ssl_certs service certificates generated"
-        
+
         # Check certificate validity
         local expired_certs=0
         for cert in /home/mills/collections/ssl-certs/*.crt; do
@@ -222,7 +222,7 @@ test_phase2_enhancements() {
                 fi
             fi
         done
-        
+
         if [[ $expired_certs -eq 0 ]]; then
             test_result "phase2.ssl.validity" "PASS" "All certificates valid for >24 hours"
         else
@@ -231,11 +231,11 @@ test_phase2_enhancements() {
     else
         test_result "phase2.ssl.certificates" "FAIL" "No SSL certificates found"
     fi
-    
+
     # Test Vault configuration
     if [[ -f "/home/mills/collections/vault/vault-config.hcl" ]]; then
         test_result "phase2.vault.config" "PASS" "Vault configuration file exists"
-        
+
         if [[ -x "/home/mills/collections/vault/vault-init.sh" ]]; then
             test_result "phase2.vault.init" "PASS" "Vault initialization script ready"
         else
@@ -244,11 +244,11 @@ test_phase2_enhancements() {
     else
         test_result "phase2.vault.config" "FAIL" "Vault configuration missing"
     fi
-    
+
     # Test backup system
     if [[ -x "/home/mills/collections/backup/backup-replication.sh" ]]; then
         test_result "phase2.backup.script" "PASS" "Backup replication script ready"
-        
+
         if [[ -d "/home/mills/backups" ]]; then
             test_result "phase2.backup.directory" "PASS" "Backup directory structure exists"
         else
@@ -257,11 +257,11 @@ test_phase2_enhancements() {
     else
         test_result "phase2.backup.script" "FAIL" "Backup replication script missing"
     fi
-    
+
     # Test security scanning
     if [[ -x "/home/mills/collections/security/container-security-scanner.sh" ]]; then
         test_result "phase2.security.scanner" "PASS" "Container security scanner ready"
-        
+
         if [[ -d "/home/mills/security-scans" ]]; then
             test_result "phase2.security.output" "PASS" "Security scan output directory exists"
         else
@@ -275,13 +275,13 @@ test_phase2_enhancements() {
 # Test Tailscale integration
 test_tailscale_integration() {
     log "=== Testing Tailscale Integration ==="
-    
+
     # Test Tailscale status
     if command -v tailscale &>/dev/null; then
         if tailscale status &>/dev/null; then
             local tailscale_ip=$(tailscale ip -4 2>/dev/null || echo "unknown")
             test_result "tailscale.connection" "PASS" "Tailscale connected (IP: $tailscale_ip)"
-            
+
             # Test peer count
             local peer_count=$(tailscale status | grep -c "^[0-9]" || echo "0")
             test_result "tailscale.peers" "PASS" "$peer_count peers in tailnet"
@@ -291,27 +291,27 @@ test_tailscale_integration() {
     else
         test_result "tailscale.connection" "FAIL" "Tailscale not installed"
     fi
-    
+
     # Test Tailscale integration scripts
     if [[ -x "/home/mills/bin/tailscale_up.sh" ]]; then
         test_result "tailscale.scripts.main" "PASS" "Main Tailscale integration script deployed"
     else
         test_result "tailscale.scripts.main" "FAIL" "Main Tailscale integration script missing"
     fi
-    
+
     if [[ -x "/home/mills/bin/add_container_to_tailnet.sh" ]]; then
         test_result "tailscale.scripts.container" "PASS" "Container integration script deployed"
     else
         test_result "tailscale.scripts.container" "FAIL" "Container integration script missing"
     fi
-    
+
     # Test Tailscale metrics exporter
     if [[ -x "/home/mills/bin/tailscale_metrics_exporter.sh" ]]; then
         test_result "tailscale.metrics.exporter" "PASS" "Tailscale metrics exporter deployed"
     else
         test_result "tailscale.metrics.exporter" "FAIL" "Tailscale metrics exporter missing"
     fi
-    
+
     # Test Prometheus Tailnet configuration
     if [[ -f "/home/mills/output/20250627_214403/prometheus_tailnet.yml" ]]; then
         test_result "tailscale.prometheus.config" "PASS" "Prometheus Tailnet configuration exists"
@@ -323,7 +323,7 @@ test_tailscale_integration() {
 # Test performance optimizations
 test_performance_optimizations() {
     log "=== Testing Performance Optimizations ==="
-    
+
     # Test recording rules
     if curl -s http://localhost:9090/api/v1/label/__name__/values | grep -q "instance:" 2>/dev/null; then
         local recording_metrics=$(curl -s http://localhost:9090/api/v1/label/__name__/values | grep -c "instance:" || echo "0")
@@ -331,7 +331,7 @@ test_performance_optimizations() {
     else
         test_result "performance.recording.rules" "WARN" "No performance recording rules found"
     fi
-    
+
     # Test optimized configurations
     local optimized_configs=0
     for service in influxdb telegraf redis nginx; do
@@ -339,13 +339,13 @@ test_performance_optimizations() {
             ((optimized_configs++))
         fi
     done
-    
+
     if [[ $optimized_configs -gt 2 ]]; then
         test_result "performance.optimized.configs" "PASS" "$optimized_configs services have optimized configurations"
     else
         test_result "performance.optimized.configs" "WARN" "Limited optimized configurations ($optimized_configs services)"
     fi
-    
+
     # Test SLA/SLO tracking
     if [[ -f "/home/mills/collections/prometheus/sla_slo_rules.yml" ]]; then
         local sla_rules=$(grep -c "sla:" "/home/mills/collections/prometheus/sla_slo_rules.yml" 2>/dev/null || echo "0")
@@ -357,7 +357,7 @@ test_performance_optimizations() {
     else
         test_result "performance.sla.rules" "FAIL" "SLA/SLO rules file missing"
     fi
-    
+
     # Test dashboard response times
     local grafana_response_time=$(curl -w "%{time_total}" -s -o /dev/null http://localhost:3000/api/health 2>/dev/null || echo "999")
     if (( $(echo "$grafana_response_time < 2.0" | bc -l) )); then
@@ -370,7 +370,7 @@ test_performance_optimizations() {
 # Test network connectivity and security
 test_network_security() {
     log "=== Testing Network Security ==="
-    
+
     # Test Docker network configuration
     local monitoring_networks=$(${DOCKER} network ls | grep -c "monitoring" || echo "0")
     if [[ $monitoring_networks -gt 0 ]]; then
@@ -378,7 +378,7 @@ test_network_security() {
     else
         test_result "network.monitoring.networks" "WARN" "No dedicated monitoring networks found"
     fi
-    
+
     # Test container security options
     local secure_containers=0
     for container in $(${DOCKER} ps --format "{{.Names}}"); do
@@ -387,16 +387,16 @@ test_network_security() {
             ((secure_containers++))
         fi
     done
-    
+
     local total_containers=$(${DOCKER} ps | wc -l)
     ((total_containers--))  # Remove header line
-    
+
     if [[ $secure_containers -gt $((total_containers / 2)) ]]; then
         test_result "network.security.containers" "PASS" "$secure_containers/$total_containers containers use security options"
     else
         test_result "network.security.containers" "WARN" "Limited container security hardening ($secure_containers/$total_containers)"
     fi
-    
+
     # Test firewall/iptables rules
     if command -v iptables &>/dev/null; then
         local docker_rules=$(iptables -L | grep -c "DOCKER" || echo "0")
@@ -413,11 +413,11 @@ test_network_security() {
 # Test backup and disaster recovery
 test_backup_recovery() {
     log "=== Testing Backup and Recovery ==="
-    
+
     # Test backup scripts
     if [[ -x "/home/mills/collections/backup/backup-replication.sh" ]]; then
         test_result "backup.replication.script" "PASS" "Backup replication script ready"
-        
+
         # Test backup directory structure
         local backup_dirs=0
         for dir in daily weekly monthly staging; do
@@ -425,7 +425,7 @@ test_backup_recovery() {
                 ((backup_dirs++))
             fi
         done
-        
+
         if [[ $backup_dirs -eq 4 ]]; then
             test_result "backup.directory.structure" "PASS" "Complete backup directory structure"
         else
@@ -434,14 +434,14 @@ test_backup_recovery() {
     else
         test_result "backup.replication.script" "FAIL" "Backup replication script missing"
     fi
-    
+
     # Test backup health monitoring
     if [[ -x "/home/mills/collections/backup/backup-health-check.sh" ]]; then
         test_result "backup.health.script" "PASS" "Backup health check script ready"
     else
         test_result "backup.health.script" "FAIL" "Backup health check script missing"
     fi
-    
+
     # Test cron job configuration (if accessible)
     if crontab -l 2>/dev/null | grep -q "backup"; then
         local backup_jobs=$(crontab -l | grep -c "backup" || echo "0")
@@ -449,7 +449,7 @@ test_backup_recovery() {
     else
         test_result "backup.cron.jobs" "WARN" "No backup cron jobs found"
     fi
-    
+
     # Test encryption key
     if [[ -f "/etc/backup/encryption.key" ]]; then
         test_result "backup.encryption.key" "PASS" "Backup encryption key exists"
@@ -461,14 +461,14 @@ test_backup_recovery() {
 # Generate comprehensive validation report
 generate_comprehensive_report() {
     log "Generating comprehensive validation report..."
-    
+
     mkdir -p "$RESULTS_DIR"
-    
+
     local pass_count=0
     local fail_count=0
     local warn_count=0
     local skip_count=0
-    
+
     for test in "${!TEST_RESULTS[@]}"; do
         case "${TEST_RESULTS[$test]}" in
             "PASS") ((pass_count++)) ;;
@@ -477,17 +477,17 @@ generate_comprehensive_report() {
             "SKIP") ((skip_count++)) ;;
         esac
     done
-    
+
     local pass_rate=0
     if [[ $TOTAL_TESTS -gt 0 ]]; then
         pass_rate=$(( pass_count * 100 / TOTAL_TESTS ))
     fi
-    
+
     cat > "$VALIDATION_REPORT" << EOF
 # Comprehensive Monitoring Stack Validation Report
 
-**Validation Date:** $(date '+%Y-%m-%d %H:%M:%S')  
-**Infrastructure:** Production Monitoring Stack  
+**Validation Date:** $(date '+%Y-%m-%d %H:%M:%S')
+**Infrastructure:** Production Monitoring Stack
 **Validation Scope:** Complete End-to-End Testing
 
 ## Executive Summary
@@ -504,7 +504,7 @@ EOF
     else
         echo "❌ **POOR** - Significant issues requiring immediate action" >> "$VALIDATION_REPORT"
     fi
-    
+
     cat >> "$VALIDATION_REPORT" << EOF
 
 ### Test Results Summary
@@ -529,7 +529,7 @@ EOF
             echo "- **$test**: ${TEST_DETAILS[$test]}" >> "$VALIDATION_REPORT"
         fi
     done
-    
+
     if [[ $fail_count -gt 0 ]]; then
         cat >> "$VALIDATION_REPORT" << EOF
 
@@ -541,7 +541,7 @@ EOF
             fi
         done
     fi
-    
+
     if [[ $warn_count -gt 0 ]]; then
         cat >> "$VALIDATION_REPORT" << EOF
 
@@ -553,7 +553,7 @@ EOF
             fi
         done
     fi
-    
+
     if [[ $skip_count -gt 0 ]]; then
         cat >> "$VALIDATION_REPORT" << EOF
 
@@ -565,7 +565,7 @@ EOF
             fi
         done
     fi
-    
+
     cat >> "$VALIDATION_REPORT" << 'EOF'
 
 ## System Component Status
@@ -580,24 +580,24 @@ EOF
         local running_status="❌ Down"
         local health_status="❌ Fail"
         local data_status="❌ No Data"
-        
+
         if [[ "${TEST_RESULTS[service.${service}.running]:-}" == "PASS" ]]; then
             running_status="✅ Running"
         fi
-        
+
         if [[ "${TEST_RESULTS[service.${service}.endpoint]:-}" == "PASS" ]]; then
             health_status="✅ Healthy"
         elif [[ "${TEST_RESULTS[service.${service}.endpoint]:-}" == "WARN" ]]; then
             health_status="⚠️ Warning"
         fi
-        
+
         if [[ "${TEST_RESULTS[data.${service}.metrics]:-}" == "PASS" ]] || [[ "${TEST_RESULTS[data.${service}.database]:-}" == "PASS" ]]; then
             data_status="✅ Active"
         fi
-        
+
         echo "| $service | $running_status | $health_status | $data_status |" >> "$VALIDATION_REPORT"
     done
-    
+
     cat >> "$VALIDATION_REPORT" << 'EOF'
 
 ### Phase 2 Enhancement Status
@@ -611,7 +611,7 @@ EOF
         local impl_status="❌ Missing"
         local config_status="❌ Not Configured"
         local ops_status="❌ Not Ready"
-        
+
         # Check implementation status
         case "$enhancement" in
             "oauth")
@@ -658,10 +658,10 @@ EOF
                 fi
                 ;;
         esac
-        
+
         echo "| $enhancement | $impl_status | $config_status | $ops_status |" >> "$VALIDATION_REPORT"
     done
-    
+
     cat >> "$VALIDATION_REPORT" << 'EOF'
 
 ## Performance Metrics
@@ -673,11 +673,11 @@ EOF
     if [[ "${TEST_RESULTS[performance.grafana.response]:-}" == "PASS" ]]; then
         echo "- **Grafana Dashboard**: ${TEST_DETAILS[performance.grafana.response]}" >> "$VALIDATION_REPORT"
     fi
-    
+
     if [[ "${TEST_RESULTS[data.telegraf.metrics]:-}" == "PASS" ]]; then
         echo "- **Telegraf Collection**: ${TEST_DETAILS[data.telegraf.metrics]}" >> "$VALIDATION_REPORT"
     fi
-    
+
     cat >> "$VALIDATION_REPORT" << 'EOF'
 
 ### Data Pipeline Health
@@ -686,11 +686,11 @@ EOF
     if [[ "${TEST_RESULTS[data.prometheus.targets]:-}" == "PASS" ]]; then
         echo "- **Prometheus Targets**: ${TEST_DETAILS[data.prometheus.targets]}" >> "$VALIDATION_REPORT"
     fi
-    
+
     if [[ "${TEST_RESULTS[data.influxdb.recent]:-}" == "PASS" ]]; then
         echo "- **InfluxDB Data Flow**: ${TEST_DETAILS[data.influxdb.recent]}" >> "$VALIDATION_REPORT"
     fi
-    
+
     cat >> "$VALIDATION_REPORT" << 'EOF'
 
 ## Remediation Plan
@@ -705,11 +705,11 @@ EOF
             ((critical_actions++))
         fi
     done
-    
+
     if [[ $critical_actions -eq 0 ]]; then
         echo "- No critical issues requiring immediate action" >> "$VALIDATION_REPORT"
     fi
-    
+
     cat >> "$VALIDATION_REPORT" << 'EOF'
 
 ### Short-term Improvements (Within 1 Week)
@@ -722,11 +722,11 @@ EOF
             ((short_term_actions++))
         fi
     done
-    
+
     if [[ $short_term_actions -eq 0 ]]; then
         echo "- All systems operating within acceptable parameters" >> "$VALIDATION_REPORT"
     fi
-    
+
     cat >> "$VALIDATION_REPORT" << 'EOF'
 
 ### Long-term Optimizations (Within 1 Month)
@@ -737,7 +737,7 @@ EOF
             echo "- **$test**: ${TEST_DETAILS[$test]}" >> "$VALIDATION_REPORT"
         fi
     done
-    
+
     cat >> "$VALIDATION_REPORT" << 'EOF'
 
 ## Operational Readiness
@@ -772,8 +772,8 @@ EOF
 - **Development Team**: For application-specific problems
 
 ---
-*Report generated by Comprehensive Deployment Validation*  
-*Next validation scheduled: 1 week from deployment*  
+*Report generated by Comprehensive Deployment Validation*
+*Next validation scheduled: 1 week from deployment*
 *For immediate assistance, check service logs and health endpoints*
 EOF
 
@@ -784,10 +784,10 @@ EOF
 main() {
     log "=== Starting Comprehensive Deployment Validation ==="
     log "Validation started at $(date)"
-    
+
     # Initialize results directory
     mkdir -p "$RESULTS_DIR"
-    
+
     # Run all validation tests
     test_service_health
     test_data_collection
@@ -797,17 +797,17 @@ main() {
     test_performance_optimizations
     test_network_security
     test_backup_recovery
-    
+
     # Generate comprehensive report
     generate_comprehensive_report
-    
+
     # Final summary
     log "=== Validation Complete ==="
     log "Total tests: $TOTAL_TESTS"
     log "Critical failures: $CRITICAL_FAILURES"
     log "Warnings: $WARNING_COUNT"
     log "Report location: $VALIDATION_REPORT"
-    
+
     if [[ $CRITICAL_FAILURES -eq 0 ]]; then
         log "✅ System validation successful - Ready for production"
         return 0

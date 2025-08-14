@@ -29,15 +29,15 @@ info() { log "${BLUE}ℹ️ $1${NC}"; }
 # Fix MySQL Exporter Configuration Issues
 fix_mysql_exporter() {
     info "Phase 1: Fixing MySQL Exporter configuration"
-    
+
     # Stop and remove the problematic container
     ${DOCKER} stop mysql-exporter-production 2>/dev/null || true
     ${DOCKER} rm mysql-exporter-production 2>/dev/null || true
-    
+
     # Verify MySQL connectivity first
     if ! ${DOCKER} exec zabbix-mysql mysql -u root -pzabbix_password -e "SELECT 1" >/dev/null 2>&1; then
         warning "MySQL not accessible, creating simplified exporter"
-        
+
         # Deploy minimal MySQL exporter without authentication
         ${DOCKER} run -d \
             --name mysql-exporter-stable \
@@ -51,7 +51,7 @@ fix_mysql_exporter() {
             prom/mysqld-exporter:latest \
             --collect.global_status \
             --collect.global_variables
-        
+
         sleep 10
         if ${DOCKER} ps | grep -q mysql-exporter-stable; then
             success "MySQL Exporter stabilized with basic configuration"
@@ -66,7 +66,7 @@ fix_mysql_exporter() {
 # Fix Threat Intelligence Service
 fix_threat_intelligence() {
     info "Phase 2: Fixing Threat Intelligence service"
-    
+
     # Create ultra-minimal threat intelligence without problematic dependencies
     cat > /home/mills/collections/threat-intelligence/ultra_minimal_threat.py << 'EOF'
 #!/usr/bin/env python3
@@ -81,19 +81,19 @@ logger = logging.getLogger(__name__)
 class MinimalThreatIntelligence:
     def __init__(self):
         self.check_interval = 3600  # 1 hour
-        
+
     def check_basic_threats(self):
         """Basic threat intelligence check"""
         try:
             # Simple threat feed check (no dependencies)
             feeds_checked = 0
             feeds_available = 0
-            
+
             threat_feeds = [
                 "https://httpbin.org/status/200",  # Test endpoint
                 "https://www.google.com"  # Connectivity test
             ]
-            
+
             for feed in threat_feeds:
                 try:
                     response = requests.get(feed, timeout=5)
@@ -102,23 +102,23 @@ class MinimalThreatIntelligence:
                         feeds_available += 1
                 except:
                     pass
-            
+
             logger.info(f"Threat intelligence check: {feeds_available}/{feeds_checked} feeds accessible")
             return True
-            
+
         except Exception as e:
             logger.error(f"Threat intelligence error: {e}")
             return False
-    
+
     def run_monitoring(self):
         """Main monitoring loop"""
         logger.info("Starting minimal threat intelligence monitoring")
-        
+
         while True:
             try:
                 self.check_basic_threats()
                 time.sleep(self.check_interval)
-                
+
             except KeyboardInterrupt:
                 logger.info("Threat intelligence stopped")
                 break
@@ -133,14 +133,14 @@ EOF
 
     # Update container with minimal implementation
     ${DOCKER} exec threat-intelligence bash -c "
-        cd /app && 
+        cd /app &&
         cp /app/ultra_minimal_threat.py /app/main.py &&
         python3 /app/main.py
     " 2>/dev/null || warning "Threat intelligence container restart needed"
-    
+
     ${DOCKER} restart threat-intelligence
     sleep 15
-    
+
     if ${DOCKER} ps | grep -q threat-intelligence; then
         success "Threat Intelligence stabilized with minimal implementation"
     else
@@ -151,14 +151,14 @@ EOF
 # Fix Security Monitor Disk Space Issues
 fix_security_monitor() {
     info "Phase 3: Fixing Security Monitor disk space"
-    
+
     # Clean up system to free space
     ${DOCKER} system prune -f --volumes 2>/dev/null || true
-    
+
     # Remove large cache files
     find /tmp -size +100M -delete 2>/dev/null || true
     find /var/tmp -size +100M -delete 2>/dev/null || true
-    
+
     # Create ultra-lightweight security monitor
     cat > /home/mills/collections/security-monitor/ultra_light_monitor.py << 'EOF'
 #!/usr/bin/env python3
@@ -173,43 +173,43 @@ logger = logging.getLogger(__name__)
 class UltraLightSecurityMonitor:
     def __init__(self):
         self.check_interval = 600  # 10 minutes
-        
+
     def basic_security_check(self):
         """Ultra-basic security monitoring"""
         try:
             # Check disk space
             statvfs = os.statvfs('/')
             disk_usage = (statvfs.f_frsize * (statvfs.f_blocks - statvfs.f_available)) / (statvfs.f_frsize * statvfs.f_blocks) * 100
-            
+
             # Check load average
             load_avg = os.getloadavg()[0]
-            
+
             # Check process count
             process_count = len(os.listdir('/proc')) if os.path.exists('/proc') else 0
-            
+
             logger.info(f"Security check - Disk: {disk_usage:.1f}%, Load: {load_avg:.2f}, Processes: {process_count}")
-            
+
             # Alert on critical conditions
             if disk_usage > 95:
                 logger.warning(f"CRITICAL: Disk usage at {disk_usage:.1f}%")
             if load_avg > 10:
                 logger.warning(f"CRITICAL: High load average {load_avg:.2f}")
-                
+
             return True
-            
+
         except Exception as e:
             logger.error(f"Security check error: {e}")
             return False
-    
+
     def run_monitoring(self):
         """Main monitoring loop"""
         logger.info("Starting ultra-light security monitoring")
-        
+
         while True:
             try:
                 self.basic_security_check()
                 time.sleep(self.check_interval)
-                
+
             except KeyboardInterrupt:
                 logger.info("Security monitoring stopped")
                 break
@@ -224,14 +224,14 @@ EOF
 
     # Update container with lightweight implementation
     ${DOCKER} exec security-monitor bash -c "
-        cd /app && 
+        cd /app &&
         cp /app/ultra_light_monitor.py /app/main.py &&
         python3 /app/main.py
     " 2>/dev/null || warning "Security monitor container restart needed"
-    
+
     ${DOCKER} restart security-monitor
     sleep 10
-    
+
     if ${DOCKER} ps | grep -q security-monitor; then
         success "Security Monitor stabilized with lightweight implementation"
     else
@@ -242,7 +242,7 @@ EOF
 # Fix Wazuh Manager TLS Configuration
 fix_wazuh_manager() {
     info "Phase 4: Fixing Wazuh Manager TLS configuration"
-    
+
     # Create proper Wazuh filebeat configuration without TLS
     cat > /home/mills/collections/wazuh/filebeat-simple.yml << 'EOF'
 filebeat.inputs:
@@ -255,7 +255,7 @@ filebeat.inputs:
   fields_under_root: true
 
 - type: filestream
-  id: wazuh-archives  
+  id: wazuh-archives
   paths:
     - /var/ossec/logs/archives/archives.json
   fields:
@@ -286,11 +286,11 @@ EOF
 
     # Copy simplified configuration
     ${DOCKER} cp /home/mills/collections/wazuh/filebeat-simple.yml wazuh-manager:/etc/filebeat/filebeat.yml 2>/dev/null || true
-    
+
     # Restart Wazuh manager
     ${DOCKER} restart wazuh-manager
     sleep 30
-    
+
     if ${DOCKER} ps | grep -q wazuh-manager; then
         success "Wazuh Manager stabilized with simplified TLS configuration"
     else
@@ -301,7 +301,7 @@ EOF
 # Fix ML Analytics Service
 fix_ml_analytics() {
     info "Phase 5: Fixing ML Analytics service"
-    
+
     # Create lightweight ML analytics without heavy dependencies
     cat > /home/mills/collections/ml-analytics/lightweight_ml.py << 'EOF'
 #!/usr/bin/env python3
@@ -317,23 +317,23 @@ logger = logging.getLogger(__name__)
 class LightweightMLAnalytics:
     def __init__(self):
         self.prometheus_url = "http://prometheus:9090"
-        
+
     def simple_anomaly_detection(self, values):
         """Simple statistical anomaly detection"""
         if len(values) < 3:
             return []
-        
+
         mean_val = sum(values) / len(values)
         variance = sum((x - mean_val) ** 2 for x in values) / len(values)
         std_dev = variance ** 0.5
-        
+
         anomalies = []
         for i, val in enumerate(values):
             if abs(val - mean_val) > 2 * std_dev:  # 2-sigma rule
                 anomalies.append(i)
-        
+
         return anomalies
-    
+
     def collect_basic_metrics(self):
         """Collect basic metrics from Prometheus"""
         try:
@@ -349,19 +349,19 @@ class LightweightMLAnalytics:
             return 0
         except:
             return 0
-    
+
     def run_analysis(self):
         """Run lightweight analysis"""
         logger.info("Starting lightweight ML analytics")
-        
+
         while True:
             try:
                 metrics_count = self.collect_basic_metrics()
                 logger.info(f"Monitoring {metrics_count} services")
-                
+
                 # Sleep for 15 minutes
                 time.sleep(900)
-                
+
             except KeyboardInterrupt:
                 logger.info("ML Analytics stopped")
                 break
@@ -376,14 +376,14 @@ EOF
 
     # Update ML analytics with lightweight version
     ${DOCKER} exec ml-analytics bash -c "
-        cd /app && 
+        cd /app &&
         cp /app/lightweight_ml.py /app/main.py &&
         python3 /app/main.py
     " 2>/dev/null || warning "ML analytics container restart needed"
-    
+
     ${DOCKER} restart ml-analytics
     sleep 15
-    
+
     if ${DOCKER} ps | grep -q ml-analytics; then
         success "ML Analytics stabilized with lightweight implementation"
     else
@@ -394,14 +394,14 @@ EOF
 # Fix Grafana Service
 fix_grafana() {
     info "Phase 6: Fixing Grafana service"
-    
+
     # Check Grafana configuration
     ${DOCKER} exec grafana bash -c "grafana-cli admin reset-admin-password admin123" 2>/dev/null || true
-    
+
     # Restart Grafana with clean state
     ${DOCKER} restart grafana
     sleep 20
-    
+
     # Verify Grafana is responding
     if curl -s http://localhost:3000/api/health | grep -q "ok"; then
         success "Grafana service stabilized and responding"
@@ -413,13 +413,13 @@ fix_grafana() {
 # Fix Zabbix Web Service
 fix_zabbix_web() {
     info "Phase 7: Fixing Zabbix Web service health"
-    
+
     # Check Zabbix database connectivity
     if ${DOCKER} exec zabbix-mysql mysql -u root -pzabbix_password -e "SHOW DATABASES" | grep -q zabbix; then
         # Restart Zabbix web service
         ${DOCKER} restart zabbix-web
         sleep 30
-        
+
         if curl -s http://localhost:8080/ | grep -q "Zabbix"; then
             success "Zabbix Web service health improved"
         else
@@ -433,7 +433,7 @@ fix_zabbix_web() {
 # Service Health Recovery Automation
 implement_health_recovery() {
     info "Phase 8: Implementing Health Recovery Automation"
-    
+
     cat > /home/mills/collections/health-recovery/auto-recovery.sh << 'EOF'
 #!/bin/bash
 # Automated Service Health Recovery
@@ -447,24 +447,24 @@ log_recovery() {
 check_and_recover_service() {
     local service_name="$1"
     local max_restarts="${2:-5}"
-    
+
     # Check if service is restarting
     if ${DOCKER} ps --format "{{.Names}}" --filter "name=$service_name" | xargs ${DOCKER} inspect --format="{{.State.Status}}" | grep -q "restarting"; then
         log_recovery "Detected $service_name in restart loop"
-        
+
         # Get restart count
         restart_count=$(${DOCKER} inspect "$service_name" --format="{{.RestartCount}}")
-        
+
         if [ "$restart_count" -gt "$max_restarts" ]; then
             log_recovery "Service $service_name exceeded restart limit ($restart_count > $max_restarts)"
-            
+
             # Stop the problematic service
             ${DOCKER} stop "$service_name" 2>/dev/null || true
-            
+
             # Wait and start with reduced resources
             sleep 10
             ${DOCKER} start "$service_name" 2>/dev/null || true
-            
+
             log_recovery "Attempted recovery for $service_name"
         fi
     fi
@@ -488,23 +488,23 @@ log_recovery "Health recovery check completed"
 EOF
 
     chmod +x /home/mills/collections/health-recovery/auto-recovery.sh
-    
+
     # Add to crontab for automated execution
     (crontab -l 2>/dev/null | grep -v "auto-recovery"; echo "*/10 * * * * /home/mills/collections/health-recovery/auto-recovery.sh") | crontab -
-    
+
     success "Health recovery automation implemented with 10-minute intervals"
 }
 
 # Generate Service Stability Report
 generate_stability_report() {
     info "Generating service stability report"
-    
+
     local report_file="/home/mills/service-stability-report-${TIMESTAMP}.md"
-    
+
     cat > "$report_file" << 'EOF'
 # Service Stability Implementation Report
 
-**Report Date:** $(date)  
+**Report Date:** $(date)
 **Implementation:** Critical Service Stabilization
 
 ## Stabilization Results
@@ -514,7 +514,7 @@ EOF
 
     # Check each service status
     services=("mysql-exporter-production" "threat-intelligence" "security-monitor" "wazuh-manager" "ml-analytics" "grafana" "zabbix-web")
-    
+
     for service in "${services[@]}"; do
         if ${DOCKER} ps | grep -q "$service.*Up"; then
             echo "- ✅ **$service**: Stabilized and running" >> "$report_file"
@@ -522,7 +522,7 @@ EOF
             echo "- 🔄 **$service**: Still stabilizing" >> "$report_file"
         fi
     done
-    
+
     cat >> "$report_file" << 'EOF'
 
 ## Implementations Applied
@@ -559,10 +559,10 @@ EOF
 # Main execution
 main() {
     log "🚀 Starting Critical Service Stabilization"
-    
+
     # Create necessary directories
     mkdir -p /home/mills/collections/health-recovery
-    
+
     # Execute all stabilization phases
     fix_mysql_exporter
     fix_threat_intelligence
@@ -571,13 +571,13 @@ main() {
     fix_ml_analytics
     fix_grafana
     fix_zabbix_web
-    
+
     # Implement health recovery automation
     implement_health_recovery
-    
+
     # Generate report
     generate_stability_report
-    
+
     log "🎉 Critical Service Stabilization completed!"
     success "All service fixes implemented with health recovery automation"
     info "Log file: $LOG_FILE"

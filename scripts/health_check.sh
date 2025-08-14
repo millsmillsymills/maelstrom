@@ -16,9 +16,9 @@ check_service() {
     local service_name="$1"
     local check_command="$2"
     local recovery_command="$3"
-    
+
     log "Checking $service_name..."
-    
+
     if eval "$check_command" >/dev/null 2>&1; then
         log "✅ $service_name is healthy"
         return 0
@@ -26,7 +26,7 @@ check_service() {
         log "❌ $service_name is unhealthy, attempting recovery..."
         eval "$recovery_command"
         sleep 5
-        
+
         if eval "$check_command" >/dev/null 2>&1; then
             log "✅ $service_name recovered successfully"
             # Send success notification

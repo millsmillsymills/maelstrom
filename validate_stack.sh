@@ -64,14 +64,14 @@ Comprehensive validation of the monitoring stack infrastructure.
 OPTIONS:
     -h, --help              Show this help message
     --health-checks-only   Run only health check tests
-    --security-only        Run only security/CVE scanning tests  
+    --security-only        Run only security/CVE scanning tests
     --backups-only         Run only backup/restore tests
     --skip-health          Skip health check tests
     --skip-security        Skip security/CVE scanning tests
     --skip-backups         Skip backup/restore tests
     --quick                Run quick validation (reduced test coverage)
     --fix-issues          Attempt to fix discovered issues
-    
+
 VALIDATION CATEGORIES:
     1. Health Checks       - Test all service health endpoints and container status
     2. Security Scanning   - Run CVE scans on all container images
@@ -94,7 +94,9 @@ SKIP_HEALTH=false
 SKIP_SECURITY=false
 SKIP_BACKUPS=false
 QUICK_MODE=false
+SCAN_ONLY_RUNNING=${SCAN_ONLY_RUNNING:-true}
 FIX_ISSUES=false
+WARN_RESURGENT_PCT=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -133,6 +135,10 @@ while [[ $# -gt 0 ]]; do
         --fix-issues)
             FIX_ISSUES=true
             shift
+            ;;
+        --warn-on-resurgent-down)
+            WARN_RESURGENT_PCT="$2"
+            shift 2
             ;;
         -*)
             error "Unknown option: $1"
@@ -179,15 +185,15 @@ get_compose_command() {
         exit 1
     fi
     local cmd="${compose_bin} -f ${BASE_COMPOSE_FILE}"
-    
+
     # Check if any profiles are running
     local running_services
     running_services=$(${DOCKER} ps --format "{{.Names}}" 2>/dev/null || echo "")
-    
-    # Check if production services are running  
+
+    # Check if production services are running
     if echo "${running_services}" | grep -qE "(wazuh|suricata|zeek|ml-analytics|jaeger)"; then
         cmd="${cmd} -f ${PROD_COMPOSE_FILE}"
-        
+
         # Detect active profiles
         if echo "${running_services}" | grep -q "ml-analytics"; then
             cmd="${cmd} --profile ml-analytics"
@@ -202,16 +208,16 @@ get_compose_command() {
             cmd="${cmd} --profile analytics-stack"
         fi
     fi
-    
+
     echo "${cmd}"
 }
 
 # Check prerequisites
 check_prerequisites() {
     test_start "Prerequisites validation"
-    
+
     local prereq_failed=false
-    
+
     # Check Docker
     if ! command -v ${DOCKER} &> /dev/null; then
         error "Docker is not available"
@@ -222,21 +228,21 @@ check_prerequisites() {
             prereq_failed=true
         fi
     fi
-    
+
     # Check required scripts exist (only if tests will use them)
     local scripts=()
-    
+
     if [[ ${SKIP_SECURITY} == false ]]; then
         scripts+=("/home/mills/scripts/scan_images.sh")
     fi
-    
+
     if [[ ${SKIP_BACKUPS} == false ]]; then
         scripts+=(
             "/home/mills/scripts/backups/backup_influxdb.sh"
             "/home/mills/scripts/backups/backup_volume.sh"
         )
     fi
-    
+
     for script in "${scripts[@]}"; do
         if [[ ! -f "${script}" ]]; then
             error "Required script not found: ${script}"
@@ -246,7 +252,7 @@ check_prerequisites() {
             prereq_failed=true
         fi
     done
-    
+
     if [[ ${prereq_failed} == true ]]; then
         error "Prerequisites validation failed"
         return 1
@@ -261,53 +267,53 @@ test_health_checks() {
     if [[ ${SKIP_HEALTH} == true ]]; then
         return 0
     fi
-    
+
     log "=== HEALTH CHECKS VALIDATION ==="
-    
+
     test_start "Container status verification"
-    
+
     local compose_cmd
     compose_cmd=$(get_compose_command)
-    
+
     # Get running services
     local running_services
     if ! running_services=$(${compose_cmd} ps --services --filter "status=running" 2>/dev/null); then
         error "Failed to get running services"
         return 1
     fi
-    
+
     if [[ -z "${running_services}" ]]; then
         error "No services are currently running"
         return 1
     fi
-    
+
     success "Found $(echo "${running_services}" | wc -l) running services"
-    
+
     # Test individual service health
     test_start "Individual service health checks"
-    
+
     local unhealthy_services=0
-    
+
     while IFS= read -r service; do
         if [[ -z "${service}" ]]; then
             continue
         fi
-        
+
         log "Testing health: ${service}"
-        
+
         # Get container name
         local container_name
         container_name=$(${compose_cmd} ps -q "${service}" 2>/dev/null || echo "")
-        
+
         if [[ -z "${container_name}" ]]; then
             warning "Service ${service} has no running container"
             continue
         fi
-        
+
         # Check container health status
         local health_status
         health_status=$(${DOCKER} inspect "${container_name}" --format='{{.State.Health.Status}}' 2>/dev/null || echo "none")
-        
+
         case "${health_status}" in
             "healthy")
                 success "Service ${service}: healthy"
@@ -315,7 +321,7 @@ test_health_checks() {
             "unhealthy")
                 error "Service ${service}: unhealthy"
                 ((unhealthy_services++)) || true
-                
+
                 if [[ ${FIX_ISSUES} == true ]]; then
                     log "Attempting to restart unhealthy service: ${service}"
                     ${compose_cmd} restart "${service}"
@@ -331,40 +337,40 @@ test_health_checks() {
                 warning "Service ${service}: unknown health status: ${health_status}"
                 ;;
         esac
-        
+
         if [[ ${QUICK_MODE} == false ]]; then
             sleep 1  # Brief delay between health checks
         fi
-        
+
     done <<< "${running_services}"
-    
+
     if [[ ${unhealthy_services} -eq 0 ]]; then
         success "All services with health checks are healthy"
     else
         error "${unhealthy_services} services are unhealthy"
     fi
-    
+
     # Test specific endpoints
     test_start "Critical endpoint connectivity"
-    
+
     local endpoints=(
         "http://localhost:3000/api/health:Grafana"
         "http://localhost:9090/-/ready:Prometheus"
         "http://localhost:9093/-/ready:Alertmanager"
         "http://localhost:8086/ping:InfluxDB"
     )
-    
-    for endpoint_info in "${endpoints[@]}"; do
+
+  for endpoint_info in "${endpoints[@]}"; do
         local endpoint="${endpoint_info%:*}"
         local service="${endpoint_info#*:}"
-        
+
         log "Testing endpoint: ${endpoint} (${service})"
-        
+
         if curl -f -s --max-time 10 "${endpoint}" > /dev/null 2>&1; then
             success "Endpoint ${service}: accessible"
         else
             error "Endpoint ${service}: not accessible"
-            
+
             if [[ ${FIX_ISSUES} == true ]]; then
                 log "Attempting to restart service for endpoint: ${service}"
                 local service_name=$(echo "${service}" | tr '[:upper:]' '[:lower:]')
@@ -372,6 +378,78 @@ test_health_checks() {
             fi
         fi
     done
+
+    # Optional: Resurgent target availability from Prometheus
+    test_start "Resurgent target availability (optional)"
+    if curl -sf "${PROM_URL:-http://localhost:9090}/api/v1/query" --get --data-urlencode 'query=up{job=~"resurgent_(node|cadvisor)"}' -o "/tmp/prom_up_resurgent.json"; then
+        if command -v python3 >/dev/null 2>&1; then
+            python3 - << 'PY' 2>/dev/null > /tmp/prom_up_resurgent.out || true
+import json, sys
+try:
+    data=json.load(open('/tmp/prom_up_resurgent.json'))
+except Exception as e:
+    print('No data')
+    sys.exit(0)
+results=data.get('data',{}).get('result',[])
+if not results:
+    print('No resurgent_* targets found; skipping')
+    sys.exit(0)
+by_job={}
+totals={'up':0,'total':0}
+for r in results:
+    job=r.get('metric',{}).get('job','unknown')
+    val=float(r.get('value',[0,'0'])[1])
+    by_job.setdefault(job, {'up':0,'total':0})
+    by_job[job]['total']+=1
+    if val==1:
+        by_job[job]['up']+=1
+        totals['up']+=1
+    totals['total']+=1
+for job, st in by_job.items():
+    pct= (100.0*st['up']/st['total']) if st['total'] else 0.0
+    print(f"{job}: up {st['up']}/{st['total']} ({pct:.0f}%)")
+overall = (100.0*totals['up']/totals['total']) if totals['total'] else 0.0
+print(f"overall: up {totals['up']}/{totals['total']} ({overall:.0f}%)")
+PY
+            if grep -q . /tmp/prom_up_resurgent.out; then
+                log "$(head -n 10 /tmp/prom_up_resurgent.out)"
+                if [[ -n "${WARN_RESURGENT_PCT}" ]]; then
+                    overall_line=$(grep -E '^overall:' /tmp/prom_up_resurgent.out | tail -n1 || true)
+                    if [[ -n "${overall_line}" ]]; then
+                        pct=$(echo "${overall_line}" | sed -E 's/.*\(([^%]+)%.*/\1/')
+                        pct_int=${pct%.*}
+                        thr=${WARN_RESURGENT_PCT%%%}
+                        if [[ "$pct_int" -lt "$thr" ]]; then
+                            warning "Resurgent overall up ${pct_int}% is below threshold ${thr}%"
+                        else
+                            success "Resurgent overall up ${pct_int}% meets threshold ${thr}%"
+                        fi
+                    else
+                        success "Resurgent targets status reported"
+                    fi
+                else
+                    success "Resurgent targets status reported"
+                fi
+            else
+                log "No resurgent targets summary"
+            fi
+        else
+            warning "Python3 not available to parse Prom results"
+        fi
+    else
+        log "Prometheus query endpoint not accessible; skipping resurgent targets check"
+    fi
+
+    # Optional: UniFi authentication using .env variables
+    if [[ -f "${SCRIPT_DIR}/scripts/health/check_unifi_auth.sh" ]]; then
+        test_start "UniFi Controller authentication via .env"
+        if bash "${SCRIPT_DIR}/scripts/health/check_unifi_auth.sh" --timeout 8 --json /tmp/unifi_auth_result.json >/dev/null 2>&1; then
+            success "UniFi authentication succeeded (see /tmp/unifi_auth_result.json)"
+        else
+            # Only warn here; UniFi may be out-of-scope for some runs
+            warning "UniFi authentication failed or not configured"
+        fi
+    fi
 }
 
 # Test security/CVE scanning
@@ -379,24 +457,29 @@ test_security_scanning() {
     if [[ ${SKIP_SECURITY} == true ]]; then
         return 0
     fi
-    
+
     log "=== SECURITY SCANNING VALIDATION ==="
-    
+
     test_start "CVE scanning execution"
-    
+
     local scan_script="/home/mills/scripts/scan_images.sh"
-    
+
     log "Running container image vulnerability scan..."
-    
+
     local scan_result=0
+    local running_flag=()
+    if [[ ${SCAN_ONLY_RUNNING} == true ]]; then
+        running_flag=(--running-only)
+    fi
+
     if [[ ${QUICK_MODE} == true ]]; then
         # Quick mode: scan only critical severity
-        timeout 300 "${scan_script}" --severity HIGH,CRITICAL || scan_result=$?
+        timeout 300 "${scan_script}" "${running_flag[@]}" --severity HIGH,CRITICAL || scan_result=$?
     else
         # Full scan
-        timeout 600 "${scan_script}" || scan_result=$?
+        timeout 600 "${scan_script}" "${running_flag[@]}" || scan_result=$?
     fi
-    
+
     case ${scan_result} in
         0)
             success "Security scan passed - no critical vulnerabilities found"
@@ -411,18 +494,18 @@ test_security_scanning() {
             error "Security scan failed with exit code: ${scan_result}"
             ;;
     esac
-    
+
     # Check for security monitoring services
     test_start "Security monitoring services status"
-    
+
     local security_services=("security-monitor")
     local wazuh_services=("wazuh-manager" "wazuh-dashboard" "wazuh-elasticsearch")
     local network_security=("suricata" "zeek" "ntopng")
-    
+
     # Check if security services are running
     local running_containers
     running_containers=$(${DOCKER} ps --format "{{.Names}}" 2>/dev/null || echo "")
-    
+
     for service in "${security_services[@]}"; do
         if echo "${running_containers}" | grep -q "^${service}$"; then
             success "Security service running: ${service}"
@@ -430,7 +513,7 @@ test_security_scanning() {
             log "Security service not active: ${service}"
         fi
     done
-    
+
     # Check Wazuh stack if running
     local wazuh_active=false
     for service in "${wazuh_services[@]}"; do
@@ -439,7 +522,7 @@ test_security_scanning() {
             success "Wazuh service running: ${service}"
         fi
     done
-    
+
     if [[ ${wazuh_active} == true ]]; then
         # Test Wazuh API if available
         if curl -f -s --max-time 10 "http://localhost:55000" > /dev/null 2>&1; then
@@ -448,7 +531,7 @@ test_security_scanning() {
             warning "Wazuh API not accessible"
         fi
     fi
-    
+
     # Check network security services
     for service in "${network_security[@]}"; do
         if echo "${running_containers}" | grep -q "^${service}$"; then
@@ -464,17 +547,17 @@ test_backup_restore() {
     if [[ ${SKIP_BACKUPS} == true ]]; then
         return 0
     fi
-    
+
     log "=== BACKUP/RESTORE VALIDATION ==="
-    
+
     test_start "Backup script availability"
-    
+
     local backup_scripts=(
         "/home/mills/scripts/backups/backup_influxdb.sh"
         "/home/mills/scripts/backups/backup_volume.sh"
         "/home/mills/scripts/backups/rotate_backups.sh"
     )
-    
+
     for script in "${backup_scripts[@]}"; do
         if [[ -x "${script}" ]]; then
             success "Backup script available: $(basename "${script}")"
@@ -482,12 +565,12 @@ test_backup_restore() {
             error "Backup script missing or not executable: ${script}"
         fi
     done
-    
+
     # Test backup directory
     test_start "Backup directory validation"
-    
+
     local backup_dir="${BACKUP_BASE_DIR:-/home/mills/backups}"
-    
+
     if [[ -d "${backup_dir}" ]]; then
         if [[ -w "${backup_dir}" ]]; then
             success "Backup directory accessible: ${backup_dir}"
@@ -496,45 +579,45 @@ test_backup_restore() {
         fi
     else
         warning "Backup directory does not exist: ${backup_dir}"
-        
+
         if [[ ${FIX_ISSUES} == true ]]; then
             log "Creating backup directory: ${backup_dir}"
             mkdir -p "${backup_dir}" && success "Backup directory created"
         fi
     fi
-    
+
     # Test InfluxDB backup functionality
     test_start "InfluxDB backup test"
-    
+
     if ${DOCKER} ps | grep -q "influxdb"; then
         log "Testing InfluxDB backup creation..."
-        
+
         local backup_script="/home/mills/scripts/backups/backup_influxdb.sh"
         local test_backup_dir="/tmp/influxdb_backup_test_${TIMESTAMP}"
-        
+
         mkdir -p "${test_backup_dir}"
-        
+
         if timeout 120 "${backup_script}" --dry-run --dest "${test_backup_dir}"; then
             success "InfluxDB backup test passed (dry-run)"
         else
             error "InfluxDB backup test failed"
         fi
-        
+
         rm -rf "${test_backup_dir}"
     else
         warning "InfluxDB not running - skipping backup test"
     fi
-    
+
     # Test volume backup functionality
     test_start "Volume backup test"
-    
+
     local test_volumes=("prometheus_data" "grafana_data")
     local backup_script="/home/mills/scripts/backups/backup_volume.sh"
-    
+
     for volume in "${test_volumes[@]}"; do
         if ${DOCKER} volume ls | grep -q "^local.*${volume}$"; then
             log "Testing backup for volume: ${volume}"
-            
+
             if timeout 60 "${backup_script}" --dry-run "${volume}"; then
                 success "Volume backup test passed: ${volume}"
             else
@@ -543,17 +626,17 @@ test_backup_restore() {
         else
             log "Volume not found, skipping test: ${volume}"
         fi
-        
+
         if [[ ${QUICK_MODE} == true ]]; then
             break  # Only test first volume in quick mode
         fi
     done
-    
+
     # Test backup rotation
     test_start "Backup rotation test"
-    
+
     local rotation_script="/home/mills/scripts/backups/rotate_backups.sh"
-    
+
     if timeout 30 "${rotation_script}" --dry-run --backup-dir "${backup_dir}" 2>/dev/null; then
         success "Backup rotation test passed"
     else
@@ -570,15 +653,15 @@ generate_report() {
     log "Failed: ${FAILED_TESTS}"
     log "Warnings: ${WARNINGS}"
     log ""
-    
+
     local success_rate=0
     if [[ ${TOTAL_TESTS} -gt 0 ]]; then
         success_rate=$(( (PASSED_TESTS * 100) / TOTAL_TESTS ))
     fi
-    
+
     log "Success rate: ${success_rate}%"
     log "Validation log: ${VALIDATION_LOG}"
-    
+
     if [[ ${FAILED_TESTS} -eq 0 ]]; then
         success "All validation tests passed!"
         return 0
@@ -594,29 +677,29 @@ main() {
     log "Timestamp: $(date)"
     log "Log file: ${VALIDATION_LOG}"
     log ""
-    
+
     # Initialize validation log
     echo "Stack Validation Report - $(date)" > "${VALIDATION_LOG}"
     echo "================================================" >> "${VALIDATION_LOG}"
     echo "" >> "${VALIDATION_LOG}"
-    
+
     # Run prerequisite checks
     if ! check_prerequisites; then
         error "Prerequisites check failed - aborting validation"
         exit 1
     fi
-    
+
     # Run validation categories
     test_health_checks
-    test_security_scanning  
+    test_security_scanning
     test_backup_restore
-    
+
     # Generate final report
     local validation_success=false
     if generate_report; then
         validation_success=true
     fi
-    
+
     # Update README status if validation passes
     if [[ ${validation_success} == true ]]; then
         log "Updating README status..."
@@ -630,7 +713,7 @@ main() {
             warning "README status update script not found"
         fi
     fi
-    
+
     if [[ ${validation_success} == true ]]; then
         exit 0
     else

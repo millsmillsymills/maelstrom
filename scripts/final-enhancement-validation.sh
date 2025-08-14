@@ -37,10 +37,10 @@ FAILED_TESTS=0
 test_result() {
     local test_name="$1"
     local test_command="$2"
-    
+
     ((TOTAL_TESTS++))
     info "Testing: $test_name"
-    
+
     if eval "$test_command" &>/dev/null; then
         success "$test_name - PASSED"
         ((PASSED_TESTS++))
@@ -55,7 +55,7 @@ test_result() {
 # Core service health tests
 test_core_services() {
     log "🔍 Testing core service health..."
-    
+
     test_result "Grafana health" "curl -s http://localhost:3000/api/health | grep -q database"
     test_result "Prometheus health" "curl -s http://localhost:9090/-/healthy"
     test_result "InfluxDB health" "curl -s http://localhost:8086/ping"
@@ -65,7 +65,7 @@ test_core_services() {
 # Configuration validation tests
 test_configurations() {
     log "⚙️ Testing enhanced configurations..."
-    
+
     test_result "Enhanced Redis config exists" "test -f /home/mills/collections/redis/redis-enhanced.conf"
     test_result "Enhanced Nginx config exists" "test -f /home/mills/collections/nginx/nginx-monitoring-gateway.conf"
     test_result "Enhanced Grafana config exists" "test -f /home/mills/collections/grafana/grafana-enhanced.ini"
@@ -77,7 +77,7 @@ test_configurations() {
 # Security tests
 test_security_enhancements() {
     log "🔐 Testing security enhancements..."
-    
+
     test_result "Rotated secrets exist" "test -f /home/mills/output/20250628T040002Z/rotated_secrets.env"
     test_result "MySQL exporter config exists" "test -f /home/mills/collections/mysql-exporter/.my.cnf"
     test_result "Network security script exists" "test -x /home/mills/collections/network-security/firewall-rules.sh"
@@ -87,7 +87,7 @@ test_security_enhancements() {
 # Performance tests
 test_performance_features() {
     log "📈 Testing performance features..."
-    
+
     test_result "Caching configuration exists" "test -f /home/mills/collections/redis/redis-enhanced.conf"
     test_result "Recording rules syntax" "grep -q 'record:' /home/mills/collections/prometheus/enhanced-recording-rules.yml"
     test_result "Anomaly detection rules" "grep -q 'anomaly' /home/mills/collections/prometheus/advanced-alerting-rules.yml"
@@ -96,7 +96,7 @@ test_performance_features() {
 # Data pipeline tests
 test_data_pipeline() {
     log "🔄 Testing data pipeline..."
-    
+
     test_result "Telegraf metrics available" "curl -s http://localhost:9273/metrics | grep -q '^# HELP'"
     test_result "Prometheus targets exist" "curl -s http://localhost:9090/api/v1/targets | grep -q activeTargets"
     test_result "InfluxDB databases exist" "${DOCKER} exec influxdb influx -execute 'SHOW DATABASES' | grep -q telegraf"
@@ -105,9 +105,9 @@ test_data_pipeline() {
 # Container status tests
 test_container_status() {
     log "🐳 Testing container status..."
-    
+
     local containers=("grafana" "prometheus" "influxdb" "telegraf" "node-exporter" "alertmanager")
-    
+
     for container in "${containers[@]}"; do
         test_result "$container container running" "${DOCKER} ps | grep -q $container"
     done
@@ -116,12 +116,12 @@ test_container_status() {
 # Generate comprehensive report
 generate_final_report() {
     local success_rate=$((PASSED_TESTS * 100 / TOTAL_TESTS))
-    
+
     cat > "$REPORT_FILE" << EOF
 # Final Infrastructure Enhancement Report
 
-**Validation Date:** $(date)  
-**Enhancement Implementation:** COMPLETED  
+**Validation Date:** $(date)
+**Enhancement Implementation:** COMPLETED
 **Validation Results:** $PASSED_TESTS/$TOTAL_TESTS tests passed (${success_rate}%)
 
 ---
@@ -173,19 +173,19 @@ EOF
     else
         echo "- **Grafana:** ❌ Unhealthy" >> "$REPORT_FILE"
     fi
-    
+
     if curl -s http://localhost:9090/-/healthy &>/dev/null; then
         echo "- **Prometheus:** ✅ Healthy" >> "$REPORT_FILE"
     else
         echo "- **Prometheus:** ❌ Unhealthy" >> "$REPORT_FILE"
     fi
-    
+
     if curl -s http://localhost:8086/ping &>/dev/null; then
         echo "- **InfluxDB:** ✅ Healthy" >> "$REPORT_FILE"
     else
         echo "- **InfluxDB:** ❌ Unhealthy" >> "$REPORT_FILE"
     fi
-    
+
     cat >> "$REPORT_FILE" << EOF
 
 ### Configuration Files Deployed
@@ -268,8 +268,8 @@ ${DOCKER} ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 ---
 
-**Enhancement Implementation Status:** ✅ **COMPLETE**  
-**Validation Date:** $(date)  
+**Enhancement Implementation Status:** ✅ **COMPLETE**
+**Validation Date:** $(date)
 **Next Review:** $(date -d '+1 week')
 
 *Comprehensive infrastructure enhancements successfully implemented and validated*
@@ -281,7 +281,7 @@ EOF
 # Main validation execution
 main() {
     log "🎯 Starting final enhancement validation"
-    
+
     # Run all validation tests
     test_core_services
     test_configurations
@@ -289,16 +289,16 @@ main() {
     test_performance_features
     test_data_pipeline
     test_container_status
-    
+
     # Generate comprehensive report
     generate_final_report
-    
+
     # Final summary
     local success_rate=$((PASSED_TESTS * 100 / TOTAL_TESTS))
-    
+
     log "🎉 Final enhancement validation completed!"
     log "📊 Results: $PASSED_TESTS/$TOTAL_TESTS tests passed (${success_rate}%)"
-    
+
     if [[ $success_rate -ge 90 ]]; then
         success "EXCELLENT - Infrastructure enhancement validation successful"
         log "🚀 All enhancements are ready for production deployment"
@@ -309,10 +309,10 @@ main() {
         error "NEEDS ATTENTION - Infrastructure enhancement requires review"
         log "🚨 Manual intervention required before deployment"
     fi
-    
+
     log "📁 Final report: $REPORT_FILE"
     log "📝 Validation log: $LOG_FILE"
-    
+
     return 0
 }
 

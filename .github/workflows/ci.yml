@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  precommit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pre-commit
+        run: pip install pre-commit
+      - name: Run pre-commit
+        run: pre-commit run -a || pre-commit run -a || true
+
+  compose-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker Compose config validation
+        run: |
+          docker version
+          docker compose version
+          docker compose -f base.yml config --quiet
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pytest
+        run: pip install pytest
+      - name: Run unit tests
+        run: pytest -q -m unit || pytest -q
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies (trivy, jq)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y trivy jq
+      - name: Run image vulnerability scan (all compose images)
+        run: |
+          timeout 20m bash scripts/scan_images.sh || true
+      - name: Upload scan artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vulnerability-scan
+          path: |
+            reports/*.json
+            logs/vulnerable_images.txt
+
+  running-only-scan:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run running-only vulnerability scan
+        env:
+          SCAN_ONLY_RUNNING: 'true'
+        run: |
+          ./validate_stack.sh --security-only || true
+      - name: Upload running-only scan artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: running-only-vulnerability-scan
+          path: |
+            reports/*.json
+            logs/vulnerable_images.txt

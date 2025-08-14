@@ -29,4 +29,3 @@ jobs:
           set -euo pipefail
           make gh.auth
           make gh.probe
-

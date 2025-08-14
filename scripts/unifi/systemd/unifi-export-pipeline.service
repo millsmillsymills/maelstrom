@@ -1,0 +1,20 @@
+[Unit]
+Description=UniFi Export -> Load -> Report Pipeline
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h
+ExecStart=%h/scripts/unifi/unifi_pipeline.sh --since 7d --out-dir output/unifi/last7d
+TimeoutStartSec=1800
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+ProtectSystem=full
+ProtectHome=no
+NoNewPrivileges=yes
+AmbientCapabilities=
+
+[Install]
+WantedBy=default.target

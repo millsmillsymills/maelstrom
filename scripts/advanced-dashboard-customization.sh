@@ -27,9 +27,9 @@ info() { log "${BLUE}ℹ️ $1${NC}"; }
 # Create Advanced Infrastructure Overview Dashboard
 create_infrastructure_dashboard() {
     info "Creating advanced infrastructure overview dashboard"
-    
+
     mkdir -p /home/mills/collections/grafana/dashboards
-    
+
     cat > /home/mills/collections/grafana/dashboards/infrastructure-overview.json << 'EOF'
 {
   "annotations": {
@@ -428,7 +428,7 @@ EOF
 # Create Service Health Dashboard
 create_service_health_dashboard() {
     info "Creating service health monitoring dashboard"
-    
+
     cat > /home/mills/collections/grafana/dashboards/service-health.json << 'EOF'
 {
   "annotations": {
@@ -722,7 +722,7 @@ EOF
 # Create Performance Analytics Dashboard
 create_performance_dashboard() {
     info "Creating performance analytics dashboard"
-    
+
     cat > /home/mills/collections/grafana/dashboards/performance-analytics.json << 'EOF'
 {
   "annotations": {
@@ -1098,7 +1098,7 @@ EOF
 # Create Security Monitoring Dashboard
 create_security_dashboard() {
     info "Creating security monitoring dashboard"
-    
+
     cat > /home/mills/collections/grafana/dashboards/security-monitoring.json << 'EOF'
 {
   "annotations": {
@@ -1468,9 +1468,9 @@ EOF
 # Create Dashboard Provisioning Configuration
 create_dashboard_provisioning() {
     info "Creating dashboard provisioning configuration"
-    
+
     mkdir -p /home/mills/collections/grafana/provisioning/dashboards
-    
+
     cat > /home/mills/collections/grafana/provisioning/dashboards/dashboard-config.yml << 'EOF'
 apiVersion: 1
 
@@ -1488,7 +1488,7 @@ EOF
 
     # Create datasource provisioning
     mkdir -p /home/mills/collections/grafana/provisioning/datasources
-    
+
     cat > /home/mills/collections/grafana/provisioning/datasources/datasource-config.yml << 'EOF'
 apiVersion: 1
 
@@ -1522,7 +1522,7 @@ EOF
 # Create Custom Dashboard Manager
 create_dashboard_manager() {
     info "Creating custom dashboard manager"
-    
+
     cat > /home/mills/collections/grafana/dashboard-manager.sh << 'EOF'
 #!/bin/bash
 # Custom Dashboard Manager
@@ -1536,20 +1536,20 @@ DASHBOARD_DIR="/home/mills/collections/grafana/dashboards"
 import_dashboard() {
     local dashboard_file="$1"
     local dashboard_name=$(basename "$dashboard_file" .json)
-    
+
     echo "Importing dashboard: $dashboard_name"
-    
+
     # Read dashboard JSON and wrap in import format
     dashboard_json=$(cat "$dashboard_file")
     import_payload="{\"dashboard\": $dashboard_json, \"overwrite\": true}"
-    
+
     # Import dashboard via API
     response=$(curl -s -X POST \
         -H "Content-Type: application/json" \
         -u "$GRAFANA_USER:$GRAFANA_PASS" \
         -d "$import_payload" \
         "$GRAFANA_URL/api/dashboards/import")
-    
+
     if echo "$response" | grep -q '"status":"success"'; then
         echo "✅ Successfully imported $dashboard_name"
     else
@@ -1562,12 +1562,12 @@ import_dashboard() {
 export_dashboard() {
     local dashboard_uid="$1"
     local output_file="$2"
-    
+
     echo "Exporting dashboard UID: $dashboard_uid"
-    
+
     response=$(curl -s -u "$GRAFANA_USER:$GRAFANA_PASS" \
         "$GRAFANA_URL/api/dashboards/uid/$dashboard_uid")
-    
+
     if echo "$response" | grep -q '"dashboard"'; then
         echo "$response" | jq '.dashboard' > "$output_file"
         echo "✅ Dashboard exported to $output_file"
@@ -1579,10 +1579,10 @@ export_dashboard() {
 # Function to list all dashboards
 list_dashboards() {
     echo "Listing all dashboards:"
-    
+
     response=$(curl -s -u "$GRAFANA_USER:$GRAFANA_PASS" \
         "$GRAFANA_URL/api/search?type=dash-db")
-    
+
     if echo "$response" | grep -q '\['; then
         echo "$response" | jq -r '.[] | "\(.uid) - \(.title)"'
     else
@@ -1593,7 +1593,7 @@ list_dashboards() {
 # Function to import all custom dashboards
 import_all_dashboards() {
     echo "Importing all custom dashboards from $DASHBOARD_DIR"
-    
+
     for dashboard_file in "$DASHBOARD_DIR"/*.json; do
         if [[ -f "$dashboard_file" ]]; then
             import_dashboard "$dashboard_file"
@@ -1637,13 +1637,13 @@ EOF
 # Generate Dashboard Summary Report
 generate_dashboard_report() {
     info "Generating dashboard customization report"
-    
+
     local report_file="/home/mills/dashboard-customization-report-${TIMESTAMP}.md"
-    
-    cat > "$report_file" << EOF
+
+    cat > "$report_file" << 'EOF'
 # Advanced Dashboard Customization Report
 
-**Report Date:** $(date)  
+**Report Date:** $(date)
 **Implementation:** Advanced Monitoring Dashboard Customization
 
 ## Custom Dashboards Deployed
@@ -1654,7 +1654,7 @@ generate_dashboard_report() {
 - **Features**: Real-time gauges, trend analysis, alert indicators
 - **Target Audience**: Operations team, executives
 
-### 2. Service Health Monitoring Dashboard  
+### 2. Service Health Monitoring Dashboard
 - **Purpose**: Detailed service status and reliability tracking
 - **Key Metrics**: Service up/down status, restart counts, health trends
 - **Features**: Service status table, pie charts, historical analysis
@@ -1787,20 +1787,20 @@ EOF
 # Main execution
 main() {
     log "🚀 Starting Advanced Monitoring Dashboard Customization"
-    
+
     # Create all custom dashboards
     create_infrastructure_dashboard
     create_service_health_dashboard
     create_performance_dashboard
     create_security_dashboard
-    
+
     # Setup dashboard provisioning and management
     create_dashboard_provisioning
     create_dashboard_manager
-    
+
     # Generate implementation report
     generate_dashboard_report
-    
+
     log "🎉 Advanced Dashboard Customization completed!"
     success "All custom dashboards created with provisioning and management tools"
     info "Log file: $LOG_FILE"

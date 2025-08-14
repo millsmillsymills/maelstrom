@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh UniFi Metrics symlink for Node Exporter
+
+[Timer]
+OnCalendar=*-*-* 03:50:00
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

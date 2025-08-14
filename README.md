@@ -14,7 +14,7 @@ Production-grade monitoring and security infrastructure built with Docker Compos
 | Stack Health     | 🟡 Degraded |
 | Critical Alerts  | ✅ None |
 | Failing Services | 2 |
-| Last Check       | 2025-08-11 01:26 UTC |
+| Last Check       | 2025-08-14 09:18 UTC |
 
 **Failing Services:**
 - trivy (restarting)
@@ -119,7 +119,7 @@ cd maelstrom
 - **Alertmanager**: http://localhost:9093
 
 ### Security Monitoring  
-- **Wazuh Dashboard**: http://localhost:5601 (kibanaserver/kibanaserver)
+- **Wazuh Dashboard**: https://localhost:5601 (self-signed; kibanaserver/kibanaserver)
 - **Pi-hole Primary**: http://192.168.1.250/admin
 - **ntopng**: http://localhost:3001
 
@@ -141,6 +141,33 @@ cd maelstrom
 - **Automated CVE scanning** in CI/CD pipeline
 - **Security monitoring** via Wazuh SIEM
 - **Network intrusion detection** with Suricata/Zeek
+
+#### Pinned Image Matrix (CVE-aware + stable)
+
+| Image                          | Tag              | Notes                                 |
+|--------------------------------|------------------|---------------------------------------|
+| prom/prometheus                | v2.53.5          | Lowest HIGH/CRIT among recent tags    |
+| prom/node-exporter             | v1.8.2           | Lower than v1.8.1/1.8.0               |
+| prom/alertmanager              | v0.27.0          | Better than v0.25.x                   |
+| grafana/loki                   | 2.9.9            | Lower than 2.9.10/2.9.11              |
+| grafana/promtail               | 2.9.11           | Lower than 2.9.10                     |
+| gcr.io/cadvisor/cadvisor       | v0.49.2          | Lower than v0.49.1                    |
+| grafana/grafana                | 11.1.13-ubuntu   | Competitive vs 11.2.x; stable         |
+| influxdb                       | 1.8.10           | Alpine variant is much worse          |
+| hashicorp/vault                | 1.16.3           | Older tags scan inconsistently        |
+
+Weekly CVE drift is tracked via GitHub Actions (see `.github/workflows/track-cve-drift.yml`).
+
+#### Latest HIGH/CRITICAL Counts (from single-image scans)
+
+| Image | HIGH/CRIT |
+|-------|-----------|
+| grafana/grafana (11.1.13-ubuntu) | 10 |
+| prom/prometheus (v2.53.5) | 2 |
+| prom/alertmanager (v0.27.0) | 14 |
+| grafana/loki (2.9.9) | 9 |
+| grafana/promtail (2.9.11) | 6 |
+| gcr.io/cadvisor/cadvisor (v0.49.2) | 8 |
 
 ### Backup & Recovery
 - **Automated backups** of all persistent data
