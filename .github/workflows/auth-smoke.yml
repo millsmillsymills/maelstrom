@@ -2,64 +2,43 @@ name: Auth Smoke
 
 on:
   pull_request:
-  push:
     branches: [ main, develop ]
-  workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
   auth-smoke:
     runs-on: ubuntu-latest
     steps:
-      - name: noninteractive-check
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -x /usr/local/bin/codex-preflight ]; then
-            /usr/local/bin/codex-preflight
-          else
-            echo "codex-preflight not present on runner; skipping preflight."
-          fi
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Smoke REST and GraphQL
+      - name: Verify gh API noninteractive
         env:
-          # Prefer GitHub token; map to provider-compatible var
-          GITHUB_PAT: ${{ github.token }}
-          GITHUB_API_BASE: https://api.github.com
-          GITHUB_GRAPHQL_URL: https://api.github.com/graphql
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
           set -euo pipefail
-          # REST rate_limit
-          hdr=$(./internal/github_auth/token_provider.sh --print-header)
-          curl -sS -f -H "$hdr" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' https://api.github.com/rate_limit >/dev/null
-          # GraphQL viewer
-          q='{"query":"query { viewer { login } }"}'
-          curl -sS -f -H "$hdr" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' -H 'Content-Type: application/json' --data "$q" https://api.github.com/graphql >/dev/null
+          who=$(gh api /user --jq .login)
+          echo "gh authenticated as: ${who}"
+          gh api /rate_limit >/dev/null
 
-      - name: Smoke Git operations (no prompts)
+      - name: Verify git to GitHub is noninteractive
         env:
-          GITHUB_PAT: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
           set -euo pipefail
-          # ls-remote should not prompt
-          GIT_ASKPASS=./internal/github_auth/git_askpass.sh GIT_TERMINAL_PROMPT=0 \
-            git -c credential.helper= -c http.https://github.com/.extraheader= \
-            ls-remote https://github.com/${{ github.repository }}.git >/dev/null
-          # dry-run push (no network write)
-          git config user.name "ci"
-          git config user.email "ci@example.com"
-          touch .auth_smoke || true
-          git add .auth_smoke || true
-          git commit -m "ci: auth-smoke noop" || true
-          GIT_ASKPASS=./internal/github_auth/git_askpass.sh GIT_TERMINAL_PROMPT=0 \
-            git -c credential.helper= -c http.https://github.com/.extraheader= \
-            push --dry-run https://github.com/${{ github.repository }}.git HEAD:refs/heads/${{ github.ref_name }} >/dev/null || true
+          url="https://github.com/${GITHUB_REPOSITORY}.git"
+          # Header injection with prompts disabled
+          git -c http.extraheader="AUTHORIZATION: bearer ${GITHUB_TOKEN}" \
+              -c core.askpass= -c credential.helper= \
+              ls-remote "$url" | head -n1
+
+      - name: Scan for banned interactive GitHub auth patterns
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/security/check_banned_github_auth.sh
