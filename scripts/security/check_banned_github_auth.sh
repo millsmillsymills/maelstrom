@@ -18,6 +18,7 @@ EXCLUDES=(
   --exclude-dir=.cache
   --exclude-dir=.codex
   --exclude-dir=.npm
+  --exclude-dir=backups
 )
 
 grep -RInE "${EXCLUDES[@]}" \
