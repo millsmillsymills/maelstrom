@@ -21,10 +21,19 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Derive token from gh and export
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "GITHUB_TOKEN=$(gh auth token)" >> "$GITHUB_ENV"
+          gh api /user >/dev/null  # smoke: ensure noninteractive gh works
 
       - name: Probe GitHub connectivity
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           make gh.auth

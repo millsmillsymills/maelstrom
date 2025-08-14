@@ -304,10 +304,10 @@ Static IP assignments ensure reliable inter-service communication:
 ### GitHub Integration
 - Auth and API helpers: `scripts/github_auth.sh`, `scripts/github_api.sh`.
 - Common targets:
-  - `make gh.auth` — configure repo-local auth (presence-only output).
-  - `make gh.probe` — verify GitHub reachability and remote.
-  - `make gh.push` — push current branch (sets upstream if missing).
-  - `make gh.oauth` — start OAuth device flow (optional).
+  - `make gh.auth` — verify noninteractive GitHub auth (via gh token).
+  - `make gh.probe` — verify GitHub reachability and remote (no prompts).
+  - `make gh.push` — push current branch (noninteractive; sets upstream if missing).
+  - `make gh.oauth` — deprecated; interactive OAuth is disabled.
 
 ## 🏷️ Service Profiles
 
