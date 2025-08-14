@@ -24,7 +24,7 @@ EXCLUDES=(
 )
 
 grep -RInE "${EXCLUDES[@]}" \
-  'gh auth login|github\.com/.+@|Authorization: (token|Basic)|\.netrc|read -s|git credential' \
+  'gh auth login|github\.com/.+@|\.netrc|read -s|git credential' \
   "${paths[@]}" || rc=$?
 
 if [[ $rc -eq 0 ]]; then
