@@ -31,7 +31,8 @@ jobs:
         run: |
           set -euo pipefail
           echo "GITHUB_TOKEN=$(gh auth token)" >> "$GITHUB_ENV"
-          gh api /user >/dev/null  # smoke: ensure noninteractive gh works
+          # Smoke: ensure noninteractive gh works (use endpoints allowed for GITHUB_TOKEN)
+          gh api /rate_limit >/dev/null
 
       - name: Probe GitHub connectivity
         run: |

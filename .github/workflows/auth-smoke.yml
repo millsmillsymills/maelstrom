@@ -21,9 +21,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          who=$(gh api /user --jq .login)
-          echo "gh authenticated as: ${who}"
+          # Use endpoints accessible to the workflow token
           gh api /rate_limit >/dev/null
+          gh api repos/${GITHUB_REPOSITORY} --jq .full_name | grep -q "${GITHUB_REPOSITORY}"
 
       - name: Verify git to GitHub is noninteractive
         env:

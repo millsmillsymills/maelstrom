@@ -8,7 +8,19 @@ set -euo pipefail
 paths=(.)
 rc=0
 
-grep -RInE --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.venv \
+# Default excludes to avoid false positives from generated artifacts and caches
+EXCLUDES=(
+  --exclude-dir=.git
+  --exclude-dir=node_modules
+  --exclude-dir=.venv
+  --exclude-dir=reports
+  --exclude-dir=output
+  --exclude-dir=.cache
+  --exclude-dir=.codex
+  --exclude-dir=.npm
+)
+
+grep -RInE "${EXCLUDES[@]}" \
   'gh auth login|github\.com/.+@|Authorization: (token|Basic)|\.netrc|getpass\(|read -s|git credential' \
   "${paths[@]}" || rc=$?
 
