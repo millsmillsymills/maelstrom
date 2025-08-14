@@ -1,0 +1,28 @@
+name: Security Scan (Running Only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      scan_timeout:
+        description: 'Timeout (minutes)'
+        required: false
+        default: '20'
+
+jobs:
+  running-only-scan:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run running-only image vulnerability scan
+        env:
+          SCAN_ONLY_RUNNING: 'true'
+        run: |
+          timeout ${ { github.event.inputs.scan_timeout || 20 } }m ./validate_stack.sh --security-only || true
+      - name: Upload scan artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: running-only-vulnerability-scan
+          path: |
+            reports/*.json
+            logs/vulnerable_images.txt

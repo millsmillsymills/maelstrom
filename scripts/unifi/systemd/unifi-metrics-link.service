@@ -1,0 +1,17 @@
+[Unit]
+Description=Link UniFi Metrics to Node Exporter textfile collector
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h
+Environment=NODE_EXPORTER_TEXTFILE_DIR=%h/node_exporter_textfile
+ExecStart=%h/scripts/unifi/unifi_metrics_link.sh
+TimeoutStartSec=120
+ProtectSystem=full
+ProtectHome=no
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

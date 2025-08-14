@@ -54,7 +54,7 @@ OPTIONS:
     --skip-backup      Skip post-deploy GitHub backup
 
 AVAILABLE PROFILES:
-    ml-analytics       ML Analytics services (ml-analytics, data-optimizer, resource-optimizer)  
+    ml-analytics       ML Analytics services (ml-analytics, data-optimizer, resource-optimizer)
     wazuh-stack        Wazuh SIEM stack (elasticsearch, manager, dashboard)
     security-stack     Security monitoring (suricata, zeek, ntopng, threat-intelligence)
     analytics-stack    Analytics services (jaeger, self-healing, maelstrom-monitor)
@@ -124,7 +124,7 @@ while [[ $# -gt 0 ]]; do
             PROFILES+=("$1")
             shift
             ;;
-        -*) 
+        -*)
             error "Unknown option: $1"
             usage
             exit 1
@@ -159,22 +159,22 @@ build_compose_command() {
     local compose_bin
     compose_bin=$(get_compose_bin)
     local cmd="${compose_bin}"
-    
+
     # Add base compose file
     cmd="${cmd} -f ${BASE_COMPOSE_FILE}"
     # Always include logging profile by default (Loki/Promtail)
     cmd="${cmd} --profile logging"
-    
+
     # Add production overlay if not base-only and profiles specified
     if [[ ${BASE_ONLY} == false && ${#PROFILES[@]} -gt 0 ]]; then
         cmd="${cmd} -f ${PROD_COMPOSE_FILE}"
-        
+
         # Add profiles
         for profile in "${PROFILES[@]}"; do
             cmd="${cmd} --profile ${profile}"
         done
     fi
-    
+
     echo "${cmd}"
 }
 
@@ -184,14 +184,14 @@ validate_compose_files() {
         error "Base compose file not found: ${BASE_COMPOSE_FILE}"
         exit 1
     fi
-    
+
     if [[ ${BASE_ONLY} == false && ${#PROFILES[@]} -gt 0 ]]; then
         if [[ ! -f "${PROD_COMPOSE_FILE}" ]]; then
             error "Production compose file not found: ${PROD_COMPOSE_FILE}"
             exit 1
         fi
     fi
-    
+
     success "Compose files validated"
 }
 
@@ -199,7 +199,7 @@ validate_compose_files() {
 validate_configuration() {
     local compose_cmd
     compose_cmd=$(build_compose_command)
-    
+
     log "Validating Docker Compose configuration..."
     if ${compose_cmd} config --quiet; then
         success "Configuration validation passed"
@@ -226,14 +226,14 @@ check_docker() {
 stop_services() {
     local compose_cmd
     compose_cmd=$(build_compose_command)
-    
+
     log "Stopping all services..."
-    
+
     if [[ ${DRY_RUN} == true ]]; then
         log "DRY RUN: Would execute: ${compose_cmd} stop"
         return 0
     fi
-    
+
     if ${compose_cmd} stop; then
         success "Services stopped successfully"
     else
@@ -246,14 +246,14 @@ stop_services() {
 down_services() {
     local compose_cmd
     compose_cmd=$(build_compose_command)
-    
+
     log "Stopping and removing all services and networks..."
-    
+
     if [[ ${DRY_RUN} == true ]]; then
         log "DRY RUN: Would execute: ${compose_cmd} down"
         return 0
     fi
-    
+
     if ${compose_cmd} down; then
         success "Services removed successfully"
     else
@@ -266,12 +266,12 @@ down_services() {
 deploy_services() {
     local compose_cmd
     compose_cmd=$(build_compose_command)
-    
+
     # Add compatibility flag if requested
     if [[ ${COMPATIBILITY} == true ]]; then
         compose_cmd="${compose_cmd} --compatibility"
     fi
-    
+
     log "Deploying monitoring stack..."
     if [[ ${BASE_ONLY} == true ]]; then
         log "Mode: Base services only"
@@ -280,14 +280,14 @@ deploy_services() {
     else
         log "Mode: Base services only (no profiles specified)"
     fi
-    
+
     if [[ ${DRY_RUN} == true ]]; then
         log "DRY RUN: Would execute: ${compose_cmd} up -d"
         log "Services that would be deployed:"
         ${compose_cmd} config --services | sed 's/^/  /'
         return 0
     fi
-    
+
     # Pull latest images unless skipped
     if [[ ${NO_PULL} == true ]]; then
         log "Skipping image pull (--no-pull set)"
@@ -297,15 +297,15 @@ deploy_services() {
             warning "Some images could not be pulled, continuing with local images"
         fi
     fi
-    
+
     # Deploy services
     if ${compose_cmd} up -d; then
         success "Stack deployed successfully"
-        
+
         # Show running services
         log "Running services:"
         ${compose_cmd} ps --format "table {{.Name}}\t{{.State}}\t{{.Ports}}" | sed '1d' | sed 's/^/  /'
-        
+
     else
         error "Failed to deploy stack"
         exit 1
@@ -316,7 +316,7 @@ deploy_services() {
 show_status() {
     local compose_cmd
     compose_cmd=$(build_compose_command)
-    
+
     log "Current service status:"
     ${compose_cmd} ps
 }
@@ -324,7 +324,7 @@ show_status() {
 # Main execution
 main() {
     log "Enhanced Monitoring Stack Deployment"
-    
+
     # Handle stop/down operations
     if [[ ${STOP_SERVICES} == true ]]; then
         check_docker
@@ -332,22 +332,22 @@ main() {
         stop_services
         exit 0
     fi
-    
+
     if [[ ${DOWN_SERVICES} == true ]]; then
-        check_docker  
+        check_docker
         validate_compose_files
         down_services
         exit 0
     fi
-    
+
     # Handle deployment
     check_docker
     validate_compose_files
     validate_configuration
-    
+
     if [[ ${DRY_RUN} == false ]]; then
         deploy_services
-        
+
         # Run post-deployment validation
         log "Running post-deployment validation..."
         if [[ -x "validate_stack.sh" ]]; then
@@ -381,28 +381,28 @@ main() {
         else
             warning "Validation script not found - skipping validation and backup"
         fi
-        
+
         log ""
         success "Deployment completed successfully!"
-        
+
         if [[ ${#PROFILES[@]} -gt 0 ]]; then
             success "Active profiles: ${PROFILES[*]}"
         fi
-        
+
         log ""
         log "Access points:"
         log "  Grafana: http://localhost:3000"
         log "  Prometheus: http://localhost:9090"
         log "  Alertmanager: http://localhost:9093"
-        
+
         if [[ " ${PROFILES[*]} " =~ " wazuh-stack " ]]; then
             log "  Wazuh Dashboard: http://localhost:5601"
         fi
-        
+
         if [[ " ${PROFILES[*]} " =~ " analytics-stack " ]]; then
             log "  Jaeger: http://localhost:16686"
         fi
-        
+
         if [[ " ${PROFILES[*]} " =~ " security-stack " ]]; then
             log "  ntopng: http://localhost:3001"
         fi

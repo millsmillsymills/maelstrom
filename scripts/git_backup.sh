@@ -61,7 +61,7 @@ OPTIONS:
     --skip-health          Skip health check validation
     --branch BRANCH        Target branch (default: main)
     --timeout SECONDS      Timeout for git ops (default: ${BACKUP_TIMEOUT})
-    
+
 EXAMPLES:
     $0                      # Auto-generated commit message
     $0 "Fix networking configuration"
@@ -136,14 +136,14 @@ check_health() {
         success "Health check skipped"
         return 0
     fi
-    
+
     if [[ ${FORCE_BACKUP} == true ]]; then
         warning "Health check bypassed with --force"
         return 0
     fi
-    
+
     log "Running health check validation..."
-    
+
     if [[ -f "validate_stack.sh" ]] && [[ -x "validate_stack.sh" ]]; then
         if ./validate_stack.sh --quick --skip-security >/dev/null 2>&1; then
             success "Health check passed"
@@ -162,7 +162,7 @@ check_health() {
 # Function to safely pull latest changes with conflict resolution
 safe_pull() {
     log "Pulling latest changes from remote..."
-    
+
     # Check if we have uncommitted changes
     if ! git diff --quiet || ! git diff --cached --quiet; then
         log "Stashing local changes..."
@@ -171,31 +171,31 @@ safe_pull() {
     else
         local stash_created=false
     fi
-    
+
     # Try to pull with rebase
     if timeout "${BACKUP_TIMEOUT}" git pull --rebase origin "$BACKUP_BRANCH"; then
         success "Successfully pulled latest changes"
     else
         warning "Pull with rebase failed, attempting merge resolution..."
-        
+
         # Abort the rebase and try a different approach
         git rebase --abort 2>/dev/null || true
-        
+
         # Try a regular pull
         if timeout "${BACKUP_TIMEOUT}" git pull origin "$BACKUP_BRANCH"; then
             success "Successfully pulled with merge"
         else
             error "Failed to pull changes - manual intervention required"
-            
+
             # Restore stashed changes if we created a stash
             if [[ $stash_created == true ]]; then
                 git stash pop 2>/dev/null || warning "Could not restore stashed changes"
             fi
-            
+
             return 1
         fi
     fi
-    
+
     # Restore stashed changes if we created a stash
     if [[ $stash_created == true ]]; then
         log "Restoring stashed changes..."
@@ -207,7 +207,7 @@ safe_pull() {
             return 1
         fi
     fi
-    
+
     return 0
 }
 
@@ -226,13 +226,13 @@ check_remote() {
 # Function to add files for backup
 add_backup_files() {
     log "Adding files for backup..."
-    
+
     # Critical configuration files
     local files_to_add=(
         "collections/"
         "docker-compose*.yml"
         "base.yml"
-        "prod.yml" 
+        "prod.yml"
         ".env"
         ".github/"
         "scripts/"
@@ -243,7 +243,7 @@ add_backup_files() {
         ".gitignore"
         ".pre-commit-config.yaml"
     )
-    
+
     # Add files that exist
     for file in "${files_to_add[@]}"; do
         if [[ -e "$file" ]]; then
@@ -251,7 +251,7 @@ add_backup_files() {
             log "Added: $file"
         fi
     done
-    
+
     # Show what would be committed
     local changes
     changes=$(git diff --cached --name-status)
@@ -271,38 +271,38 @@ generate_commit_message() {
         echo "$CUSTOM_MESSAGE"
         return 0
     fi
-    
+
     local timestamp
     timestamp=$(date '+%F %T')
-    
+
     # Count changes
     local added_files modified_files deleted_files
     added_files=$(git diff --cached --name-status | grep -c '^A' || echo "0")
     modified_files=$(git diff --cached --name-status | grep -c '^M' || echo "0")
     deleted_files=$(git diff --cached --name-status | grep -c '^D' || echo "0")
-    
+
     # Generate descriptive message
     local message="🧪 Config Sync: $timestamp"
-    
+
     local details=()
     [[ $added_files -gt 0 ]] && details+=("$added_files added")
     [[ $modified_files -gt 0 ]] && details+=("$modified_files modified")
     [[ $deleted_files -gt 0 ]] && details+=("$deleted_files deleted")
-    
+
     if [[ ${#details[@]} -gt 0 ]]; then
         message="$message ($(IFS=', '; echo "${details[*]}"))"
     fi
-    
+
     echo "$message"
 }
 
 # Function to commit and push changes
 commit_and_push() {
     local commit_message="$1"
-    
+
     # Create commit
     log "Creating commit..."
-    
+
     local full_commit_message
     full_commit_message=$(cat << EOF
 $commit_message
@@ -312,13 +312,13 @@ $commit_message
 Co-Authored-By: Claude <noreply@anthropic.com>
 EOF
 )
-    
+
     if [[ ${DRY_RUN} == true ]]; then
         log "DRY RUN: Would create commit with message:"
         echo "$full_commit_message" | sed 's/^/  /'
         return 0
     fi
-    
+
     # Create the commit
     if git commit -m "$full_commit_message"; then
         success "Commit created successfully"
@@ -326,18 +326,18 @@ EOF
         error "Failed to create commit"
         return 1
     fi
-    
+
     # Push to remote
     log "Pushing to remote repository..."
     if timeout "${BACKUP_TIMEOUT}" git push origin "$BACKUP_BRANCH"; then
         success "Successfully pushed to GitHub"
-        
+
         # Update README status after successful push
         if [[ -x "scripts/update_readme_status.py" ]]; then
             log "Updating README status..."
             python3 scripts/update_readme_status.py || warning "Failed to update README status"
         fi
-        
+
         return 0
     else
         error "Failed to push to remote repository"
@@ -348,12 +348,12 @@ EOF
 # Main execution function
 main() {
     log "Starting Git configuration backup..."
-    
+
     # Run health check
     if ! check_health; then
         exit 1
     fi
-    
+
     # Verify remote is reachable; skip gracefully if not
     if ! check_remote; then
         # Treat as a soft skip so callers don't fail deployments
@@ -366,17 +366,17 @@ main() {
         error "Failed to sync with remote repository"
         exit 1
     fi
-    
+
     # Add files for backup
     if ! add_backup_files; then
         success "No changes to backup"
         exit 0
     fi
-    
+
     # Generate commit message
     local commit_msg
     commit_msg=$(generate_commit_message)
-    
+
     # Commit and push
     if commit_and_push "$commit_msg"; then
         success "Configuration backup completed successfully"

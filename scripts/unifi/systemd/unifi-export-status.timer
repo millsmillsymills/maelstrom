@@ -1,0 +1,10 @@
+[Unit]
+Description=Run UniFi Export Status Check daily
+
+[Timer]
+OnCalendar=*-*-* 04:05:00
+Persistent=true
+RandomizedDelaySec=180
+
+[Install]
+WantedBy=timers.target

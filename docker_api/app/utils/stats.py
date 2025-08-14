@@ -18,8 +18,14 @@ class ContainerStats:
 
 def _calc_cpu_percent(stats: dict) -> Optional[float]:
     try:
-        cpu_delta = stats["cpu_stats"]["cpu_usage"]["total_usage"] - stats["precpu_stats"]["cpu_usage"]["total_usage"]
-        system_delta = stats["cpu_stats"]["system_cpu_usage"] - stats["precpu_stats"]["system_cpu_usage"]
+        cpu_delta = (
+            stats["cpu_stats"]["cpu_usage"]["total_usage"]
+            - stats["precpu_stats"]["cpu_usage"]["total_usage"]
+        )
+        system_delta = (
+            stats["cpu_stats"]["system_cpu_usage"]
+            - stats["precpu_stats"]["system_cpu_usage"]
+        )
         if system_delta > 0 and cpu_delta > 0:
             cores = len(stats["cpu_stats"]["cpu_usage"].get("percpu_usage", [])) or 1
             return (cpu_delta / system_delta) * cores * 100.0
@@ -47,8 +53,16 @@ def collect_container_stats_once(container) -> Optional[ContainerStats]:
 
         # Network
         net = stats.get("networks", {}) or {}
-        net_rx = sum(int(v.get("rx_bytes", 0)) for v in net.values()) if isinstance(net, dict) else None
-        net_tx = sum(int(v.get("tx_bytes", 0)) for v in net.values()) if isinstance(net, dict) else None
+        net_rx = (
+            sum(int(v.get("rx_bytes", 0)) for v in net.values())
+            if isinstance(net, dict)
+            else None
+        )
+        net_tx = (
+            sum(int(v.get("tx_bytes", 0)) for v in net.values())
+            if isinstance(net, dict)
+            else None
+        )
 
         return ContainerStats(
             cpu_percent=cpu_percent,
@@ -62,4 +76,3 @@ def collect_container_stats_once(container) -> Optional[ContainerStats]:
         )
     except Exception:
         return None
-

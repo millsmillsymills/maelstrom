@@ -131,4 +131,3 @@ export async function getAccessToken(): Promise<Token> {
 }
 
 export default { getAccessToken };
-

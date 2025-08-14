@@ -9,7 +9,9 @@ import pathlib
 from typing import Optional
 
 
-def read_secret(secret_name: str, fallback_env: Optional[str] = None, required: bool = True) -> Optional[str]:
+def read_secret(
+    secret_name: str, fallback_env: Optional[str] = None, required: bool = True
+) -> Optional[str]:
     """
     Read a secret from the secrets directory or fall back to env vars.
 
@@ -58,7 +60,12 @@ def get_database_url(db_type: str = "influxdb") -> str:
         host = os.environ.get("INFLUXDB_HOST", "influxdb")
         port = os.environ.get("INFLUXDB_PORT", "8086")
         db = os.environ.get("INFLUXDB_DB", "")
-        password = read_secret("influxdb_admin_password", "INFLUXDB_ADMIN_PASSWORD", required=False) or ""
+        password = (
+            read_secret(
+                "influxdb_admin_password", "INFLUXDB_ADMIN_PASSWORD", required=False
+            )
+            or ""
+        )
 
         auth = f"{user}:{password}@" if password else ""
         suffix = f"/{db}" if db else ""
@@ -68,7 +75,10 @@ def get_database_url(db_type: str = "influxdb") -> str:
         user = os.environ.get("ZABBIX_DB_USER", "root")
         host = os.environ.get("ZABBIX_DB_HOST", "mysql")
         db = os.environ.get("ZABBIX_DB_NAME", "")
-        password = read_secret("zabbix_db_password", "ZABBIX_DB_PASSWORD", required=False) or ""
+        password = (
+            read_secret("zabbix_db_password", "ZABBIX_DB_PASSWORD", required=False)
+            or ""
+        )
 
         auth = f"{user}:{password}@" if password else ""
         suffix = f"/{db}" if db else ""

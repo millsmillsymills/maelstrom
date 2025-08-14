@@ -8,6 +8,7 @@ Thank you for improving the Maelstrom stack. This guide summarizes expectations 
 - Validate locally before opening a PR:
   - `./deploy_stack.sh --dry-run --all-profiles`
   - `./validate_stack.sh --quick`
+  - `make compose.check` and `make health.report` (generates summary + JSON)
   - `pytest -q` (or focused: `pytest -m unit` / `pytest -m integration`)
   - `pre-commit run -a`
 
@@ -26,6 +27,7 @@ Thank you for improving the Maelstrom stack. This guide summarizes expectations 
 - Clear summary of what/why, linked issue if applicable.
 - Repro/validation steps, including `${DOCKER} compose -f base.yml config --quiet` output when relevant.
 - Screenshots for dashboards/UX; list active profiles (e.g., `security-stack wazuh-stack`).
+- Reference `AGENTS.md` for detailed repository guidelines and troubleshooting.
 
 ## Security
 - Never commit secrets or tokens. Use `secrets/` (chmod 0600) and `.env.template`.

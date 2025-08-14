@@ -8,6 +8,9 @@ on:
 jobs:
   nightly-health:
     runs-on: ubuntu-latest
+    env:
+      DOWN_TARGETS_WARN: "10"
+      DOWN_TARGETS_FAIL: "30"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,9 +30,86 @@ jobs:
         run: |
           chmod +x scripts/ops/health_sanity.sh || true
           ./scripts/ops/health_sanity.sh || true
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Prometheus Optional Check" >> $GITHUB_STEP_SUMMARY
-          echo "(Resurgent target up% printed when available)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Health Sanity Summary" >> "$GITHUB_STEP_SUMMARY"
+          if ls output/health_sanity_*.md 1>/dev/null 2>&1; then
+            latest_report=$(ls -t output/health_sanity_*.md | head -n1)
+            echo "Appending report: ${latest_report}" >&2
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            cat "$latest_report" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No health_sanity report found to append" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Prometheus Optional Check" >> "$GITHUB_STEP_SUMMARY"
+          echo "(Resurgent target up% printed when available)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Down targets percent (best-effort)
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROM_URL="${PROM_URL:-http://localhost:9090}"
+          if curl -sf "$PROM_URL/-/ready" >/dev/null 2>&1; then
+            if curl -sf "$PROM_URL/api/v1/targets" -o /tmp/targets.json; then
+              python3 - <<'PY' > /tmp/targets_summary.txt
+import json,sys
+try:
+    data=json.load(open('/tmp/targets.json'))
+    active=data.get('data',{}).get('activeTargets',[])
+    total=len(active)
+    down=sum(1 for t in active if t.get('health')=='down')
+    pct = (down/total*100) if total else 0
+    print(f"Targets: {total}\nDown: {down}\nPercent: {pct:.1f}")
+    if down:
+        ex=[f"{t.get('labels',{}).get('job','?')}:{t.get('discoveredLabels',{}).get('__address__','?')}" for t in active if t.get('health')=='down']
+        print(f"Examples: {', '.join(ex[:5])}")
+except Exception as e:
+    print(f"Error: {e}")
+PY
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "## Target Health Summary" >> "$GITHUB_STEP_SUMMARY"
+              if grep -q '^Error:' /tmp/targets_summary.txt; then
+                cat /tmp/targets_summary.txt >> "$GITHUB_STEP_SUMMARY"
+              else
+                cat /tmp/targets_summary.txt | awk 'BEGIN{ex=""} /^Targets:/{t=$2} /^Down:/{d=$2} /^Percent:/{p=$2} /^Examples:/{ex=$0} END{ printf("- Targets: %s (down: %s, %s%%)\n", t,d,p); if (ex!="") { sub("Examples: ", "- Down examples: ", ex); print ex } }' >> "$GITHUB_STEP_SUMMARY"
+                pct=$(awk '/^Percent:/{print $2}' /tmp/targets_summary.txt | cut -d. -f1)
+                warn=${DOWN_TARGETS_WARN:-10}
+                fail=${DOWN_TARGETS_FAIL:-30}
+                if [ -n "$pct" ]; then
+                  if [ "$pct" -gt "$fail" ]; then
+                    echo "Down targets percent ($pct%) exceeds fail threshold ($fail%)" >> "$GITHUB_STEP_SUMMARY"
+                    echo "::error title=Target health degraded::Down targets $pct% > $fail%"
+                    exit 1
+                  elif [ "$pct" -gt "$warn" ]; then
+                    echo "::warning title=Target health warning::Down targets $pct% > $warn%" >> "$GITHUB_STEP_SUMMARY"
+                  fi
+                fi
+              fi
+            fi
+          else
+            echo "Prometheus not reachable; skipping target percent" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Run services audit
+        shell: bash
+        run: |
+          chmod +x scripts/ops/services_audit.sh || true
+          ./scripts/ops/services_audit.sh || true
+          if ls output/services_audit_*.md 1>/dev/null 2>&1; then
+            latest_services=$(ls -t output/services_audit_*.md | head -n1)
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "## Services Audit Summary" >> "$GITHUB_STEP_SUMMARY"
+            echo "Appending report: ${latest_services}" >&2
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            sed -n '1,80p' "$latest_services" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload services audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: services-audit-md
+          path: output/services_audit_*.md
+          if-no-files-found: warn
 
       - name: Upload health sanity artifact
         uses: actions/upload-artifact@v4

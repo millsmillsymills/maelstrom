@@ -34,19 +34,19 @@ cd "$PROJECT_ROOT" || exit 1
 CRON_JOBS=(
     # README status updates every 15 minutes
     "*/15 * * * * cd $PROJECT_ROOT && python3 scripts/update_readme_status.py >/dev/null 2>&1"
-    
+
     # Daily configuration backup at 2 AM
     "0 2 * * * cd $PROJECT_ROOT && ./scripts/git_backup.sh 'Automated daily backup' >/dev/null 2>&1"
-    
-    # Weekly comprehensive validation and backup on Sundays at 3 AM  
+
+    # Weekly comprehensive validation and backup on Sundays at 3 AM
     "0 3 * * 0 cd $PROJECT_ROOT && ./validate_stack.sh --quick && ./scripts/git_backup.sh 'Weekly validation backup' >/dev/null 2>&1"
-    
+
     # Monthly security scan and backup on 1st of month at 4 AM
     "0 4 1 * * cd $PROJECT_ROOT && ./scripts/scan_images.sh && ./scripts/git_backup.sh 'Monthly security scan backup' >/dev/null 2>&1"
-    
+
     # Health check and issue management every 30 minutes
     "*/30 * * * * cd $PROJECT_ROOT && python3 scripts/update_readme_status.py >/dev/null 2>&1"
-    
+
     # Log rotation weekly on Saturdays at 1 AM
     "0 1 * * 6 find $PROJECT_ROOT/logs -name '*.log' -mtime +7 -delete >/dev/null 2>&1"
 )
@@ -63,15 +63,15 @@ log "Installing automation cron jobs..."
 {
     # Preserve existing cron jobs (if any) that aren't Maelstrom related
     crontab -l 2>/dev/null | grep -v "$PROJECT_ROOT" || true
-    
+
     # Add header comment
     echo "# Maelstrom Monitoring Stack Automation - Installed $(date)"
-    
+
     # Add new jobs
     for job in "${CRON_JOBS[@]}"; do
         echo "$job"
     done
-    
+
 } | crontab -
 
 success "Cron jobs installed successfully"
@@ -162,7 +162,7 @@ echo "  5. Start monitoring dashboard: ./scripts/monitoring_dashboard.sh"
 echo ""
 echo "🔧 MANAGEMENT COMMANDS:"
 echo "  • View cron jobs: crontab -l"
-echo "  • Edit automation: crontab -e" 
+echo "  • Edit automation: crontab -e"
 echo "  • Manual backup: ./scripts/git_backup.sh 'Manual backup'"
 echo "  • Check GitHub issues: python3 scripts/github_issue_manager.py list"
 echo "  • Start dashboard: ./scripts/monitoring_dashboard.sh"

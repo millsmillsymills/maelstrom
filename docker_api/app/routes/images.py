@@ -28,4 +28,3 @@ def list_images_root():
             )
         )
     return results
-

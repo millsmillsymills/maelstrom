@@ -77,9 +77,7 @@ def _write_cache(token: Token) -> None:
         pass
 
 
-def _oauth_refresh(
-    client_id: str, client_secret: str, refresh_token: str
-) -> Token:
+def _oauth_refresh(client_id: str, client_secret: str, refresh_token: str) -> Token:
     """
     Perform OAuth2 refresh for GitHub OAuth App.
 
@@ -108,7 +106,7 @@ def _oauth_refresh(
     access_token = data.get("access_token")
     token_type = data.get("token_type", "bearer")
     expires_in = data.get("expires_in")
-    new_refresh_token = data.get("refresh_token")
+    # refresh_token may be provided but is not persisted here
     scope = data.get("scope") or data.get("scopes")
 
     if not access_token:
@@ -146,7 +144,7 @@ def _get_pat_from_env() -> Optional[str]:
 
 def _backoff_sleep(attempt: int) -> None:
     # Exponential backoff with jitter up to ~2^attempt seconds
-    base = min(2 ** attempt, 16)
+    base = min(2**attempt, 16)
     time.sleep(random.uniform(0.25, base))
 
 
@@ -243,8 +241,7 @@ def get_access_token() -> Token:
     if not pat:
         hints.append("provide GITHUB_PAT (or GITHUB_TOKEN in CI)")
     raise TokenError(
-        "Unable to obtain GitHub token non-interactively. "
-        + " ".join(hints)
+        "Unable to obtain GitHub token non-interactively. " + " ".join(hints)
     )
 
 
@@ -254,4 +251,3 @@ def get_auth_header() -> Tuple[str, str]:
 
 
 __all__ = ["Token", "TokenError", "get_access_token", "get_auth_header"]
-

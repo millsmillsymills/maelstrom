@@ -13,19 +13,38 @@ router = APIRouter()
 
 
 @router.websocket("/ws/logs/{container_id}")
-async def logs_ws(websocket: WebSocket, container_id: str, keyword: Optional[str] = Query(None), tail: int = Query(100)):
+async def logs_ws(
+    websocket: WebSocket,
+    container_id: str,
+    keyword: Optional[str] = Query(None),
+    tail: int = Query(100),
+):
     # Simple API key check for WebSocket: use Authorization header or token query.
     from ..utils.auth import _get_api_key
+
     api_key = _get_api_key()
     auth = websocket.headers.get("authorization") or websocket.query_params.get("token")
-    if not api_key or not auth or (auth.lower().startswith("bearer ") and auth.split(" ", 1)[1] != api_key) and auth != api_key:
+    if (
+        not api_key
+        or not auth
+        or (auth.lower().startswith("bearer ") and auth.split(" ", 1)[1] != api_key)
+        and auth != api_key
+    ):
         await websocket.close(code=4401)
         return
     await websocket.accept()
     cli = get_low_level_client()
     try:
-        stream = cli.attach(container=container_id, stdout=True, stderr=True, stream=True, logs=True, demux=True)
+        stream = cli.attach(
+            container=container_id,
+            stdout=True,
+            stderr=True,
+            stream=True,
+            logs=True,
+            demux=True,
+        )
         sent = 0
+
         async def send_line(line: str, source: str):
             nonlocal sent
             if keyword and keyword not in line:

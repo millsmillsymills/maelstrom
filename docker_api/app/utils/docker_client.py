@@ -16,4 +16,3 @@ def get_client() -> DockerClient:
 def get_low_level_client() -> APIClient:
     """Get low-level Docker API client (cached)."""
     return docker.APIClient(base_url=get_client().api.base_url)
-

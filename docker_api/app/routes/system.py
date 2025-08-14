@@ -6,7 +6,6 @@ from typing import List
 import platform
 import psutil
 from fastapi import APIRouter
-from loguru import logger
 
 from ..utils.docker_client import get_client
 from ..models.schemas import SystemInfo, DockerImageSummary
@@ -58,4 +57,3 @@ def list_images():
             )
         )
     return results
-

@@ -27,7 +27,7 @@ info() { log "${BLUE}ℹ️ $1${NC}"; }
 # Create Enhanced Network Configuration
 create_enhanced_networking() {
     info "Creating enhanced network configuration"
-    
+
     cat > /home/mills/collections/networking/enhanced-networks.yml << 'EOF'
 # Enhanced Docker Network Configuration
 version: '3.8'
@@ -101,9 +101,9 @@ EOF
 # Create Service Mesh Configuration
 create_service_mesh() {
     info "Creating service mesh configuration"
-    
+
     mkdir -p /home/mills/collections/service-mesh
-    
+
     cat > /home/mills/collections/service-mesh/service-registry.json << 'EOF'
 {
   "service_registry": {
@@ -125,7 +125,7 @@ create_service_mesh() {
       },
       "grafana": {
         "name": "grafana",
-        "network": "monitoring-optimized", 
+        "network": "monitoring-optimized",
         "ip": "172.30.0.3",
         "port": 3000,
         "health_check": "/api/health",
@@ -140,7 +140,7 @@ create_service_mesh() {
       "influxdb": {
         "name": "influxdb",
         "network": "data-pipeline",
-        "ip": "172.35.0.2", 
+        "ip": "172.35.0.2",
         "port": 8086,
         "health_check": "/ping",
         "dependencies": [],
@@ -188,13 +188,13 @@ create_service_mesh() {
           "strip_prefix": true
         },
         {
-          "path": "/api/grafana/*", 
+          "path": "/api/grafana/*",
           "service": "grafana",
           "strip_prefix": true
         },
         {
           "path": "/api/influxdb/*",
-          "service": "influxdb", 
+          "service": "influxdb",
           "strip_prefix": true
         }
       ],
@@ -215,7 +215,7 @@ EOF
 # Create Connection Pool Manager
 create_connection_pool() {
     info "Creating connection pool manager"
-    
+
     cat > /home/mills/collections/service-mesh/connection-pool.py << 'EOF'
 #!/usr/bin/env python3
 import time
@@ -238,97 +238,97 @@ class ConnectionPool:
         self.health_status = defaultdict(bool)
         self.request_history = defaultdict(deque)
         self.lock = threading.Lock()
-        
+
     def get_service_url(self, service_name):
         """Get service URL from configuration"""
         if service_name in self.service_config['services']:
             service = self.service_config['services'][service_name]
             return f"http://{service['ip']}:{service['port']}"
         return None
-    
+
     def health_check(self, service_name):
         """Perform health check for a service"""
         try:
             service = self.service_config['services'].get(service_name)
             if not service:
                 return False
-            
+
             url = self.get_service_url(service_name)
             health_path = service.get('health_check', '/')
-            
+
             response = requests.get(f"{url}{health_path}", timeout=5)
             healthy = response.status_code == 200
-            
+
             with self.lock:
                 self.health_status[service_name] = healthy
-                
+
             return healthy
-            
+
         except Exception as e:
             logger.error(f"Health check failed for {service_name}: {e}")
             with self.lock:
                 self.health_status[service_name] = False
             return False
-    
+
     def make_request(self, service_name, path, method='GET', data=None, timeout=None):
         """Make request with connection pooling and retry logic"""
         service = self.service_config['services'].get(service_name)
         if not service:
             raise ValueError(f"Service {service_name} not found in configuration")
-        
+
         # Check service health first
         if not self.health_status.get(service_name, True):
             if not self.health_check(service_name):
                 raise ConnectionError(f"Service {service_name} is unhealthy")
-        
+
         url = self.get_service_url(service_name)
         request_url = f"{url}{path}"
-        
+
         # Use service timeout or default
         request_timeout = timeout or int(service.get('timeout', '30s').rstrip('s'))
-        
+
         # Retry logic
         retry_policy = service.get('retry_policy', {})
         max_retries = retry_policy.get('max_retries', 3)
         retry_delay = float(retry_policy.get('retry_delay', '2s').rstrip('s'))
-        
+
         last_exception = None
         for attempt in range(max_retries + 1):
             try:
                 start_time = time.time()
-                
+
                 if method == 'GET':
                     response = requests.get(request_url, timeout=request_timeout)
                 elif method == 'POST':
                     response = requests.post(request_url, json=data, timeout=request_timeout)
                 else:
                     raise ValueError(f"Unsupported method: {method}")
-                
+
                 end_time = time.time()
                 response_time = end_time - start_time
-                
+
                 # Track request statistics
                 self.track_request(service_name, response_time, response.status_code)
-                
+
                 if response.status_code < 400:
                     return response
                 else:
                     last_exception = Exception(f"HTTP {response.status_code}")
-                    
+
             except Exception as e:
                 last_exception = e
                 logger.warning(f"Request to {service_name} failed (attempt {attempt + 1}): {e}")
-                
+
                 if attempt < max_retries:
                     time.sleep(retry_delay)
-        
+
         raise last_exception
-    
+
     def track_request(self, service_name, response_time, status_code):
         """Track request statistics"""
         with self.lock:
             now = datetime.now()
-            
+
             # Initialize stats if needed
             if service_name not in self.connection_stats:
                 self.connection_stats[service_name] = {
@@ -338,33 +338,33 @@ class ConnectionPool:
                     'avg_response_time': 0,
                     'last_request': now
                 }
-            
+
             stats = self.connection_stats[service_name]
             stats['total_requests'] += 1
             stats['last_request'] = now
-            
+
             if status_code < 400:
                 stats['successful_requests'] += 1
             else:
                 stats['failed_requests'] += 1
-            
+
             # Update average response time (exponential moving average)
             alpha = 0.1  # Smoothing factor
             if stats['avg_response_time'] == 0:
                 stats['avg_response_time'] = response_time
             else:
                 stats['avg_response_time'] = (alpha * response_time) + ((1 - alpha) * stats['avg_response_time'])
-            
+
             # Keep request history (last 100 requests)
             self.request_history[service_name].append({
                 'timestamp': now,
                 'response_time': response_time,
                 'status_code': status_code
             })
-            
+
             if len(self.request_history[service_name]) > 100:
                 self.request_history[service_name].popleft()
-    
+
     def get_statistics(self):
         """Get connection pool statistics"""
         with self.lock:
@@ -373,7 +373,7 @@ class ConnectionPool:
                 success_rate = 0
                 if service_stats['total_requests'] > 0:
                     success_rate = (service_stats['successful_requests'] / service_stats['total_requests']) * 100
-                
+
                 stats[service_name] = {
                     'health_status': self.health_status.get(service_name, False),
                     'total_requests': service_stats['total_requests'],
@@ -381,21 +381,21 @@ class ConnectionPool:
                     'avg_response_time': round(service_stats['avg_response_time'], 3),
                     'last_request': service_stats['last_request'].isoformat()
                 }
-            
+
             return stats
-    
+
     def run_health_monitor(self):
         """Run continuous health monitoring"""
         logger.info("Starting connection pool health monitor")
-        
+
         while True:
             try:
                 for service_name in self.service_config['services']:
                     self.health_check(service_name)
-                
+
                 # Sleep for 30 seconds between health checks
                 time.sleep(30)
-                
+
             except KeyboardInterrupt:
                 logger.info("Health monitor stopped")
                 break
@@ -407,33 +407,33 @@ class ServiceMeshManager:
     def __init__(self, config_file):
         with open(config_file, 'r') as f:
             self.config = json.load(f)['service_registry']
-        
+
         self.connection_pool = ConnectionPool(self.config)
         self.health_monitor_thread = None
-        
+
     def start_health_monitoring(self):
         """Start health monitoring in background thread"""
         self.health_monitor_thread = threading.Thread(target=self.connection_pool.run_health_monitor)
         self.health_monitor_thread.daemon = True
         self.health_monitor_thread.start()
         logger.info("Health monitoring started")
-    
+
     def route_request(self, path, method='GET', data=None):
         """Route request based on path"""
         for route in self.config.get('routing_rules', {}).get('api_routes', []):
             if path.startswith(route['path'].rstrip('/*')):
                 service_name = route['service']
-                
+
                 # Strip prefix if configured
                 if route.get('strip_prefix'):
                     service_path = path[len(route['path'].rstrip('/*')):]
                 else:
                     service_path = path
-                
+
                 return self.connection_pool.make_request(service_name, service_path, method, data)
-        
+
         raise ValueError(f"No route found for path: {path}")
-    
+
     def get_service_stats(self):
         """Get comprehensive service statistics"""
         return {
@@ -448,30 +448,30 @@ class ServiceMeshManager:
 def main():
     # Load service mesh configuration
     config_file = '/home/mills/collections/service-mesh/service-registry.json'
-    
+
     try:
         mesh_manager = ServiceMeshManager(config_file)
         mesh_manager.start_health_monitoring()
-        
+
         logger.info("Service mesh manager started")
-        
+
         # Example usage
         while True:
             try:
                 # Get service statistics
                 stats = mesh_manager.get_service_stats()
                 logger.info(f"Service mesh statistics: {stats['service_statistics']}")
-                
+
                 # Sleep for 60 seconds
                 time.sleep(60)
-                
+
             except KeyboardInterrupt:
                 logger.info("Service mesh manager stopped")
                 break
             except Exception as e:
                 logger.error(f"Error in service mesh manager: {e}")
                 time.sleep(30)
-    
+
     except Exception as e:
         logger.error(f"Failed to start service mesh manager: {e}")
 
@@ -485,7 +485,7 @@ EOF
 # Create Load Balancer Configuration
 create_load_balancer() {
     info "Creating load balancer configuration"
-    
+
     cat > /home/mills/collections/service-mesh/nginx-load-balancer.conf << 'EOF'
 # Enhanced Nginx Load Balancer Configuration
 
@@ -516,31 +516,31 @@ limit_conn_zone $binary_remote_addr zone=conn_limit:10m;
 server {
     listen 80;
     server_name monitoring-gateway;
-    
+
     # Global connection limits
     limit_conn conn_limit 20;
-    
+
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Strict-Transport-Security "max-age=31536000" always;
-    
+
     # Logging
     access_log /var/log/nginx/gateway_access.log;
     error_log /var/log/nginx/gateway_error.log;
-    
+
     # Health check endpoint
     location /health {
         access_log off;
         return 200 "healthy\n";
         add_header Content-Type text/plain;
     }
-    
+
     # Prometheus API proxy
     location /api/prometheus/ {
         limit_req zone=api_limit burst=20 nodelay;
-        
+
         proxy_pass http://prometheus_backend/;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
@@ -548,22 +548,22 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
         # Timeouts
         proxy_connect_timeout 10s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
-        
+
         # Buffering
         proxy_buffering on;
         proxy_buffer_size 4k;
         proxy_buffers 8 4k;
     }
-    
+
     # Grafana proxy
     location /grafana/ {
         limit_req zone=dashboard_limit burst=10 nodelay;
-        
+
         proxy_pass http://grafana_backend/;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
@@ -571,16 +571,16 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
         # WebSocket support for Grafana live features
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
-        
+
         # Timeouts
         proxy_connect_timeout 10s;
         proxy_send_timeout 120s;
         proxy_read_timeout 120s;
-        
+
         # Caching for static assets
         location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
             proxy_pass http://grafana_backend;
@@ -589,11 +589,11 @@ server {
             add_header Cache-Control "public, immutable";
         }
     }
-    
+
     # InfluxDB proxy
     location /api/influxdb/ {
         limit_req zone=api_limit burst=15 nodelay;
-        
+
         proxy_pass http://influxdb_backend/;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
@@ -601,16 +601,16 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
         # Timeouts for database operations
         proxy_connect_timeout 5s;
         proxy_send_timeout 45s;
         proxy_read_timeout 45s;
-        
+
         # No caching for database writes
         proxy_cache off;
     }
-    
+
     # Circuit breaker simulation via error pages
     error_page 502 503 504 /error_upstream;
     location /error_upstream {
@@ -619,7 +619,7 @@ server {
         add_header Content-Type text/plain;
         add_header Retry-After 30;
     }
-    
+
     # Metrics endpoint for load balancer monitoring
     location /nginx_status {
         stub_status on;
@@ -633,7 +633,7 @@ server {
 server {
     listen 443 ssl http2;
     server_name monitoring-gateway;
-    
+
     # SSL configuration (if certificates are available)
     ssl_certificate /etc/ssl/nginx/nginx.crt;
     ssl_certificate_key /etc/ssl/nginx/nginx.key;
@@ -642,7 +642,7 @@ server {
     ssl_prefer_server_ciphers off;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
-    
+
     # Include all the same location blocks as HTTP
     include /etc/nginx/conf.d/monitoring-locations.conf;
 }
@@ -654,7 +654,7 @@ EOF
 # Create Circuit Breaker Implementation
 create_circuit_breaker() {
     info "Creating circuit breaker implementation"
-    
+
     cat > /home/mills/collections/service-mesh/circuit-breaker.py << 'EOF'
 #!/usr/bin/env python3
 import time
@@ -673,23 +673,23 @@ class CircuitState(Enum):
     HALF_OPEN = "half_open" # Testing if service has recovered
 
 class CircuitBreaker:
-    def __init__(self, service_name, failure_threshold=5, recovery_timeout=60, 
+    def __init__(self, service_name, failure_threshold=5, recovery_timeout=60,
                  success_threshold=3, request_timeout=30):
         self.service_name = service_name
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.success_threshold = success_threshold
         self.request_timeout = request_timeout
-        
+
         self.state = CircuitState.CLOSED
         self.failure_count = 0
         self.success_count = 0
         self.last_failure_time = None
         self.request_history = deque(maxlen=100)
         self.lock = threading.Lock()
-        
+
         logger.info(f"Circuit breaker initialized for {service_name}")
-    
+
     def can_execute(self):
         """Check if request can be executed"""
         with self.lock:
@@ -697,7 +697,7 @@ class CircuitBreaker:
                 return True
             elif self.state == CircuitState.OPEN:
                 # Check if recovery timeout has passed
-                if (self.last_failure_time and 
+                if (self.last_failure_time and
                     datetime.now() - self.last_failure_time > timedelta(seconds=self.recovery_timeout)):
                     self.state = CircuitState.HALF_OPEN
                     self.success_count = 0
@@ -706,9 +706,9 @@ class CircuitBreaker:
                 return False
             elif self.state == CircuitState.HALF_OPEN:
                 return True
-            
+
             return False
-    
+
     def record_success(self, response_time=None):
         """Record successful request"""
         with self.lock:
@@ -717,7 +717,7 @@ class CircuitBreaker:
                 'success': True,
                 'response_time': response_time
             })
-            
+
             if self.state == CircuitState.HALF_OPEN:
                 self.success_count += 1
                 if self.success_count >= self.success_threshold:
@@ -727,19 +727,19 @@ class CircuitBreaker:
             elif self.state == CircuitState.CLOSED:
                 # Reset failure count on success
                 self.failure_count = max(0, self.failure_count - 1)
-    
+
     def record_failure(self, error=None):
         """Record failed request"""
         with self.lock:
             self.failure_count += 1
             self.last_failure_time = datetime.now()
-            
+
             self.request_history.append({
                 'timestamp': self.last_failure_time,
                 'success': False,
                 'error': str(error) if error else "Unknown error"
             })
-            
+
             if self.state == CircuitState.CLOSED:
                 if self.failure_count >= self.failure_threshold:
                     self.state = CircuitState.OPEN
@@ -747,23 +747,23 @@ class CircuitBreaker:
             elif self.state == CircuitState.HALF_OPEN:
                 self.state = CircuitState.OPEN
                 logger.warning(f"Circuit breaker for {self.service_name} returned to OPEN")
-    
+
     def get_statistics(self):
         """Get circuit breaker statistics"""
         with self.lock:
-            recent_requests = [r for r in self.request_history 
+            recent_requests = [r for r in self.request_history
                              if datetime.now() - r['timestamp'] < timedelta(minutes=5)]
-            
+
             success_count = sum(1 for r in recent_requests if r['success'])
             total_count = len(recent_requests)
             success_rate = (success_count / total_count * 100) if total_count > 0 else 0
-            
+
             avg_response_time = 0
             if recent_requests:
                 response_times = [r.get('response_time', 0) for r in recent_requests if r['success']]
                 if response_times:
                     avg_response_time = sum(response_times) / len(response_times)
-            
+
             return {
                 'service_name': self.service_name,
                 'state': self.state.value,
@@ -778,41 +778,41 @@ class CircuitBreakerManager:
     def __init__(self):
         self.circuit_breakers = {}
         self.lock = threading.Lock()
-    
+
     def get_circuit_breaker(self, service_name, **kwargs):
         """Get or create circuit breaker for service"""
         with self.lock:
             if service_name not in self.circuit_breakers:
                 self.circuit_breakers[service_name] = CircuitBreaker(service_name, **kwargs)
             return self.circuit_breakers[service_name]
-    
+
     def execute_with_circuit_breaker(self, service_name, operation, *args, **kwargs):
         """Execute operation with circuit breaker protection"""
         circuit_breaker = self.get_circuit_breaker(service_name)
-        
+
         if not circuit_breaker.can_execute():
             raise Exception(f"Circuit breaker is OPEN for {service_name}")
-        
+
         try:
             start_time = time.time()
             result = operation(*args, **kwargs)
             end_time = time.time()
-            
+
             response_time = end_time - start_time
             circuit_breaker.record_success(response_time)
-            
+
             return result
-            
+
         except Exception as e:
             circuit_breaker.record_failure(e)
             raise
-    
+
     def get_all_statistics(self):
         """Get statistics for all circuit breakers"""
         with self.lock:
-            return {name: cb.get_statistics() 
+            return {name: cb.get_statistics()
                    for name, cb in self.circuit_breakers.items()}
-    
+
     def reset_circuit_breaker(self, service_name):
         """Manually reset circuit breaker"""
         with self.lock:
@@ -827,20 +827,20 @@ class CircuitBreakerManager:
 # Example usage
 def main():
     manager = CircuitBreakerManager()
-    
+
     # Example operation
     def make_http_request():
         import requests
         response = requests.get("http://prometheus:9090/-/healthy", timeout=5)
         return response.status_code == 200
-    
+
     # Execute with circuit breaker protection
     try:
         result = manager.execute_with_circuit_breaker("prometheus", make_http_request)
         print(f"Request successful: {result}")
     except Exception as e:
         print(f"Request failed: {e}")
-    
+
     # Print statistics
     stats = manager.get_all_statistics()
     print(f"Circuit breaker statistics: {stats}")
@@ -855,7 +855,7 @@ EOF
 # Create Performance Monitoring for Cross-Service Communication
 create_communication_monitor() {
     info "Creating cross-service communication monitor"
-    
+
     cat > /home/mills/collections/service-mesh/communication-monitor.py << 'EOF'
 #!/usr/bin/env python3
 import time
@@ -882,24 +882,24 @@ class CommunicationMonitor:
         })
         self.service_dependencies = defaultdict(set)
         self.lock = threading.Lock()
-        
+
     def record_request(self, from_service, to_service, response_time, success=True, error=None):
         """Record inter-service communication"""
         with self.lock:
             key = f"{from_service}->{to_service}"
             metrics = self.service_metrics[key]
-            
+
             metrics['request_count'] += 1
             metrics['last_request'] = datetime.now()
-            
+
             if success:
                 metrics['success_count'] += 1
             else:
                 metrics['error_count'] += 1
-            
+
             metrics['total_response_time'] += response_time
             metrics['avg_response_time'] = metrics['total_response_time'] / metrics['request_count']
-            
+
             # Record recent request details
             metrics['recent_requests'].append({
                 'timestamp': metrics['last_request'],
@@ -907,26 +907,26 @@ class CommunicationMonitor:
                 'success': success,
                 'error': error
             })
-            
+
             # Track dependencies
             self.service_dependencies[from_service].add(to_service)
-    
+
     def get_service_communication_stats(self, time_window_minutes=60):
         """Get communication statistics within time window"""
         with self.lock:
             cutoff_time = datetime.now() - timedelta(minutes=time_window_minutes)
             stats = {}
-            
+
             for comm_key, metrics in self.service_metrics.items():
                 # Filter recent requests within time window
-                recent = [r for r in metrics['recent_requests'] 
+                recent = [r for r in metrics['recent_requests']
                          if r['timestamp'] > cutoff_time]
-                
+
                 if recent:
                     success_count = sum(1 for r in recent if r['success'])
                     error_count = len(recent) - success_count
                     avg_response_time = sum(r['response_time'] for r in recent) / len(recent)
-                    
+
                     stats[comm_key] = {
                         'request_count': len(recent),
                         'success_count': success_count,
@@ -935,19 +935,19 @@ class CommunicationMonitor:
                         'avg_response_time': round(avg_response_time, 3),
                         'last_request': max(r['timestamp'] for r in recent).isoformat()
                     }
-            
+
             return stats
-    
+
     def get_service_dependency_map(self):
         """Get service dependency mapping"""
         with self.lock:
             return {service: list(deps) for service, deps in self.service_dependencies.items()}
-    
+
     def detect_communication_issues(self, error_threshold=0.1, response_time_threshold=5.0):
         """Detect communication issues between services"""
         issues = []
         stats = self.get_service_communication_stats(time_window_minutes=30)
-        
+
         for comm_key, metrics in stats.items():
             # Check error rate
             if metrics['error_count'] > 0:
@@ -960,7 +960,7 @@ class CommunicationMonitor:
                         'threshold': error_threshold * 100,
                         'severity': 'high' if error_rate > 0.5 else 'medium'
                     })
-            
+
             # Check response time
             if metrics['avg_response_time'] > response_time_threshold:
                 issues.append({
@@ -970,22 +970,22 @@ class CommunicationMonitor:
                     'threshold': response_time_threshold,
                     'severity': 'high' if metrics['avg_response_time'] > 10 else 'medium'
                 })
-        
+
         return issues
-    
+
     def generate_communication_report(self):
         """Generate comprehensive communication report"""
         stats = self.get_service_communication_stats()
         dependencies = self.get_service_dependency_map()
         issues = self.detect_communication_issues()
-        
+
         # Calculate overall health metrics
         total_requests = sum(s['request_count'] for s in stats.values())
         total_errors = sum(s['error_count'] for s in stats.values())
         overall_error_rate = (total_errors / total_requests * 100) if total_requests > 0 else 0
-        
+
         avg_response_time = sum(s['avg_response_time'] for s in stats.values()) / len(stats) if stats else 0
-        
+
         report = {
             'timestamp': datetime.now().isoformat(),
             'summary': {
@@ -1000,18 +1000,18 @@ class CommunicationMonitor:
             'issues': issues,
             'health_score': max(0, 100 - (overall_error_rate * 10) - (len(issues) * 5))
         }
-        
+
         return report
 
 class CrossServiceOptimizer:
     def __init__(self):
         self.monitor = CommunicationMonitor()
         self.optimization_history = deque(maxlen=24)  # Keep 24 hours of data
-        
+
     def simulate_service_communication(self):
         """Simulate and monitor cross-service communication"""
         services = ['prometheus', 'grafana', 'influxdb', 'nginx-gateway', 'redis-cache']
-        
+
         # Simulate some communication patterns
         communications = [
             ('grafana', 'prometheus'),
@@ -1021,62 +1021,62 @@ class CrossServiceOptimizer:
             ('prometheus', 'influxdb'),
             ('redis-cache', 'grafana')
         ]
-        
+
         for from_service, to_service in communications:
             try:
                 # Simulate request
                 start_time = time.time()
-                
+
                 # Mock response time (in real implementation, this would be actual requests)
                 import random
                 response_time = random.uniform(0.1, 2.0)
                 success = random.random() > 0.05  # 95% success rate
-                
+
                 end_time = start_time + response_time
-                
+
                 self.monitor.record_request(
                     from_service, to_service, response_time, success
                 )
-                
+
             except Exception as e:
                 logger.error(f"Error in service communication simulation: {e}")
-    
+
     def run_optimization_cycle(self):
         """Run one optimization cycle"""
         try:
             # Simulate communication
             self.simulate_service_communication()
-            
+
             # Generate report
             report = self.monitor.generate_communication_report()
-            
+
             # Store optimization data
             self.optimization_history.append(report)
-            
+
             # Log summary
             logger.info(f"Communication health score: {report['health_score']:.1f}")
             if report['issues']:
                 logger.warning(f"Issues detected: {len(report['issues'])}")
                 for issue in report['issues']:
                     logger.warning(f"  {issue['type']}: {issue['communication']}")
-            
+
             return report
-            
+
         except Exception as e:
             logger.error(f"Error in optimization cycle: {e}")
             return None
-    
+
     def run_continuous_optimization(self):
         """Run continuous communication optimization"""
         logger.info("Starting cross-service communication optimizer")
-        
+
         while True:
             try:
                 self.run_optimization_cycle()
-                
+
                 # Sleep for 60 seconds between cycles
                 time.sleep(60)
-                
+
             except KeyboardInterrupt:
                 logger.info("Communication optimizer stopped")
                 break
@@ -1098,7 +1098,7 @@ EOF
 # Create Service Discovery Configuration
 create_service_discovery() {
     info "Creating service discovery configuration"
-    
+
     cat > /home/mills/collections/service-mesh/service-discovery.py << 'EOF'
 #!/usr/bin/env python3
 import json
@@ -1118,21 +1118,21 @@ class ServiceDiscovery:
         except:
             self.docker_client = None
             logger.error("Docker client not available")
-        
+
         self.service_registry = {}
         self.service_health = {}
         self.lock = threading.Lock()
-        
+
     def discover_services(self):
         """Discover running services via Docker"""
         if not self.docker_client:
             return {}
-        
+
         discovered_services = {}
-        
+
         try:
             containers = self.docker_client.containers.list()
-            
+
             for container in containers:
                 service_info = {
                     'name': container.name,
@@ -1143,7 +1143,7 @@ class ServiceDiscovery:
                     'ports': {},
                     'labels': container.labels
                 }
-                
+
                 # Extract network information
                 if 'NetworkSettings' in container.attrs:
                     networks = container.attrs['NetworkSettings']['Networks']
@@ -1152,21 +1152,21 @@ class ServiceDiscovery:
                             'ip_address': network_info.get('IPAddress'),
                             'gateway': network_info.get('Gateway')
                         }
-                
+
                 # Extract port information
                 if 'NetworkSettings' in container.attrs and 'Ports' in container.attrs['NetworkSettings']:
                     ports = container.attrs['NetworkSettings']['Ports']
                     for port, bindings in ports.items():
                         if bindings:
                             service_info['ports'][port] = bindings
-                
+
                 discovered_services[container.name] = service_info
-                
+
         except Exception as e:
             logger.error(f"Error discovering services: {e}")
-        
+
         return discovered_services
-    
+
     def register_service(self, service_name, service_config):
         """Register a service manually"""
         with self.lock:
@@ -1175,13 +1175,13 @@ class ServiceDiscovery:
                 'registered_at': datetime.now().isoformat(),
                 'last_updated': datetime.now().isoformat()
             }
-        
+
         logger.info(f"Service {service_name} registered")
-    
+
     def update_service_registry(self):
         """Update service registry with discovered services"""
         discovered = self.discover_services()
-        
+
         with self.lock:
             for service_name, service_info in discovered.items():
                 if service_name in self.service_registry:
@@ -1193,14 +1193,14 @@ class ServiceDiscovery:
                         'registered_at': datetime.now().isoformat(),
                         'last_updated': datetime.now().isoformat()
                     }
-    
+
     def health_check_service(self, service_name, health_endpoint='/health'):
         """Perform health check on a service"""
         try:
             service_info = self.get_service_info(service_name)
             if not service_info:
                 return False
-            
+
             # Try to find an IP address to connect to
             ip_address = None
             if 'discovered' in service_info:
@@ -1209,10 +1209,10 @@ class ServiceDiscovery:
                     if network_info.get('ip_address'):
                         ip_address = network_info['ip_address']
                         break
-            
+
             if not ip_address:
                 return False
-            
+
             # Find a port to connect to
             port = None
             if 'discovered' in service_info:
@@ -1221,26 +1221,26 @@ class ServiceDiscovery:
                     if bindings:
                         port = port_spec.split('/')[0]  # Extract port number
                         break
-            
+
             if not port:
                 return False
-            
+
             # Perform health check
             import requests
             url = f"http://{ip_address}:{port}{health_endpoint}"
             response = requests.get(url, timeout=5)
-            
+
             healthy = response.status_code == 200
-            
+
             with self.lock:
                 self.service_health[service_name] = {
                     'healthy': healthy,
                     'last_check': datetime.now().isoformat(),
                     'response_code': response.status_code
                 }
-            
+
             return healthy
-            
+
         except Exception as e:
             logger.debug(f"Health check failed for {service_name}: {e}")
             with self.lock:
@@ -1250,12 +1250,12 @@ class ServiceDiscovery:
                     'error': str(e)
                 }
             return False
-    
+
     def get_service_info(self, service_name):
         """Get service information"""
         with self.lock:
             return self.service_registry.get(service_name)
-    
+
     def get_healthy_services(self):
         """Get list of healthy services"""
         with self.lock:
@@ -1264,15 +1264,15 @@ class ServiceDiscovery:
                 if health_info.get('healthy', False):
                     healthy_services.append(service_name)
             return healthy_services
-    
+
     def get_service_discovery_report(self):
         """Generate service discovery report"""
         self.update_service_registry()
-        
+
         with self.lock:
             total_services = len(self.service_registry)
             healthy_services = len(self.get_healthy_services())
-            
+
             report = {
                 'timestamp': datetime.now().isoformat(),
                 'summary': {
@@ -1283,29 +1283,29 @@ class ServiceDiscovery:
                 'services': self.service_registry,
                 'health_status': self.service_health
             }
-            
+
             return report
-    
+
     def run_service_discovery(self):
         """Run continuous service discovery"""
         logger.info("Starting service discovery")
-        
+
         while True:
             try:
                 # Update service registry
                 self.update_service_registry()
-                
+
                 # Perform health checks
                 for service_name in list(self.service_registry.keys()):
                     self.health_check_service(service_name)
-                
+
                 # Generate report
                 report = self.get_service_discovery_report()
                 logger.info(f"Service discovery: {report['summary']}")
-                
+
                 # Sleep for 30 seconds
                 time.sleep(30)
-                
+
             except KeyboardInterrupt:
                 logger.info("Service discovery stopped")
                 break
@@ -1327,13 +1327,13 @@ EOF
 # Generate Cross-Service Optimization Report
 generate_optimization_report() {
     info "Generating cross-service optimization report"
-    
+
     local report_file="/home/mills/cross-service-optimization-report-${TIMESTAMP}.md"
-    
+
     cat > "$report_file" << EOF
 # Cross-Service Communication Optimization Report
 
-**Report Date:** $(date)  
+**Report Date:** $(date)
 **Implementation:** Cross-Service Communication Optimization
 
 ## Implementation Summary
@@ -1542,10 +1542,10 @@ EOF
 # Main execution
 main() {
     log "🚀 Starting Cross-Service Communication Optimization"
-    
+
     # Create necessary directories
     mkdir -p /home/mills/collections/{networking,service-mesh}
-    
+
     # Implement all optimization components
     create_enhanced_networking
     create_service_mesh
@@ -1554,10 +1554,10 @@ main() {
     create_circuit_breaker
     create_communication_monitor
     create_service_discovery
-    
+
     # Generate implementation report
     generate_optimization_report
-    
+
     log "🎉 Cross-Service Communication Optimization completed!"
     success "All optimization components implemented with monitoring and management tools"
     info "Log file: $LOG_FILE"

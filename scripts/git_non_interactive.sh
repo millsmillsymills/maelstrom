@@ -16,4 +16,3 @@ fi
 GIT_ASKPASS="$ASKPASS" \
 GIT_TERMINAL_PROMPT=0 \
 git -c credential.helper= -c http.https://github.com/.extraheader= "$@"
-

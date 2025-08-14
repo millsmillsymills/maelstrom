@@ -32,4 +32,3 @@ Add to crontab (edit with `crontab -e`) only after validation. The following sho
 ## Retention
 
 Use `scripts/backups/rotate_backups.sh` in `--dry-run` first to preview deletions before enabling in production.
-

@@ -1,0 +1,20 @@
+[Unit]
+Description=Rotate UniFi Export Folders
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h
+ExecStart=%h/scripts/unifi/rotate_unifi_exports.sh --keep-days 30
+TimeoutStartSec=300
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+ProtectSystem=full
+ProtectHome=no
+NoNewPrivileges=yes
+AmbientCapabilities=
+
+[Install]
+WantedBy=default.target

@@ -32,4 +32,3 @@ See `.env.pinned.example` for a curated set covering core, exporters, and securi
 1. Apply `.env.pinned.example` selections to your `.env` in a test environment.
 2. Run validation, monitor for regressions, and adjust pins as needed.
 3. Promote to production during a maintenance window.
-

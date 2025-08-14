@@ -10,4 +10,3 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def unhandled_exception_handler(request: Request, exc: Exception):
         logger.exception("Unhandled exception")
         return JSONResponse(status_code=500, content={"error": str(exc)})
-

@@ -29,11 +29,11 @@ info() { log "${BLUE}ℹ️ $1${NC}"; }
 # Phase 1: Critical Service Fixes
 fix_mysql_exporter() {
     info "Phase 1.1: Fixing MySQL Exporter authentication"
-    
+
     # Stop the problematic containers
     ${DOCKER} stop mysql-exporter-fixed mysql-exporter-production 2>/dev/null || true
     ${DOCKER} rm mysql-exporter-fixed mysql-exporter-production 2>/dev/null || true
-    
+
     # Create proper MySQL exporter configuration
     cat > /home/mills/collections/mysql-exporter/mysql-exporter.env << 'EOF'
 DATA_SOURCE_NAME=monitoring_user:Mon1t0r1ng_Exp0rt3r_2025!@tcp(zabbix-mysql:3306)/
@@ -98,14 +98,14 @@ EOF
 
 fix_threat_intelligence() {
     info "Phase 1.2: Fixing Threat Intelligence service"
-    
+
     # Install missing system dependencies
     ${DOCKER} exec threat-intelligence bash -c "
-        apt-get update && 
+        apt-get update &&
         apt-get install -y libpcap-dev gcc python3-dev build-essential &&
         pip install pypcap scapy requests python-dateutil
     " || warning "Could not install threat intelligence dependencies"
-    
+
     # Create minimal threat intelligence service
     cat > /home/mills/collections/threat-intelligence/minimal_threat_monitor.py << 'EOF'
 #!/usr/bin/env python3
@@ -125,11 +125,11 @@ class ThreatIntelligenceMonitor:
             "https://urlhaus-api.abuse.ch/v1/urls/recent/"
         ]
         self.slack_webhook = None  # Configure if needed
-        
+
     def check_threat_feeds(self):
         """Check threat intelligence feeds"""
         threats_detected = 0
-        
+
         for feed_url in self.threat_feeds:
             try:
                 response = requests.get(feed_url, timeout=10)
@@ -140,21 +140,21 @@ class ThreatIntelligenceMonitor:
                     logger.warning(f"Failed to check threat feed: {feed_url}")
             except Exception as e:
                 logger.error(f"Error checking threat feed {feed_url}: {e}")
-                
+
         return threats_detected
-    
+
     def run_monitoring(self):
         """Main monitoring loop"""
         logger.info("Starting threat intelligence monitoring")
-        
+
         while True:
             try:
                 threats = self.check_threat_feeds()
                 logger.info(f"Checked {len(self.threat_feeds)} threat feeds, {threats} responsive")
-                
+
                 # Sleep for 1 hour between checks
                 time.sleep(3600)
-                
+
             except KeyboardInterrupt:
                 logger.info("Monitoring stopped")
                 break
@@ -169,7 +169,7 @@ EOF
 
     # Restart with minimal implementation
     ${DOCKER} restart threat-intelligence
-    
+
     sleep 15
     if ${DOCKER} ps | grep -q threat-intelligence; then
         success "Threat Intelligence service stabilized"
@@ -180,11 +180,11 @@ EOF
 
 fix_security_monitor() {
     info "Phase 1.3: Fixing Security Monitor disk space issue"
-    
+
     # Clean up Docker system to free space
     ${DOCKER} system prune -f
     ${DOCKER} image prune -f
-    
+
     # Create lightweight security monitor
     cat > /home/mills/collections/security-monitor/lightweight_monitor.py << 'EOF'
 #!/usr/bin/env python3
@@ -200,7 +200,7 @@ logger = logging.getLogger(__name__)
 class SecurityMonitor:
     def __init__(self):
         self.check_interval = 300  # 5 minutes
-        
+
     def check_system_security(self):
         """Perform basic security checks"""
         checks = {
@@ -209,10 +209,10 @@ class SecurityMonitor:
             'memory_usage': self.check_memory_usage(),
             'network_connections': self.check_network_connections()
         }
-        
+
         logger.info(f"Security check results: {checks}")
         return checks
-    
+
     def check_disk_usage(self):
         """Check disk usage"""
         usage = psutil.disk_usage('/')
@@ -222,11 +222,11 @@ class SecurityMonitor:
             'free': usage.free,
             'percent': (usage.used / usage.total) * 100
         }
-    
+
     def check_process_count(self):
         """Check running process count"""
         return len(psutil.pids())
-    
+
     def check_memory_usage(self):
         """Check memory usage"""
         memory = psutil.virtual_memory()
@@ -235,20 +235,20 @@ class SecurityMonitor:
             'available': memory.available,
             'percent': memory.percent
         }
-    
+
     def check_network_connections(self):
         """Check network connections"""
         return len(psutil.net_connections())
-    
+
     def run_monitoring(self):
         """Main monitoring loop"""
         logger.info("Starting security monitoring")
-        
+
         while True:
             try:
                 self.check_system_security()
                 time.sleep(self.check_interval)
-                
+
             except KeyboardInterrupt:
                 logger.info("Security monitoring stopped")
                 break
@@ -263,7 +263,7 @@ EOF
 
     # Restart security monitor
     ${DOCKER} restart security-monitor
-    
+
     sleep 10
     if ${DOCKER} ps | grep -q security-monitor; then
         success "Security Monitor fixed and running"
@@ -274,15 +274,15 @@ EOF
 
 fix_wazuh_manager() {
     info "Phase 1.4: Fixing Wazuh Manager TLS configuration"
-    
+
     # Create proper Wazuh TLS configuration
     mkdir -p /home/mills/collections/wazuh/certs
-    
+
     # Copy SSL certificates for Wazuh
     cp /home/mills/collections/ssl-certs/wazuh-dashboard.crt /home/mills/collections/wazuh/certs/
     cp /home/mills/collections/ssl-certs/wazuh-dashboard.key /home/mills/collections/wazuh/certs/
     cp /home/mills/collections/ssl-certs/ca.crt /home/mills/collections/wazuh/certs/
-    
+
     # Update Wazuh filebeat configuration
     cat > /home/mills/collections/wazuh/filebeat.yml << 'EOF'
 filebeat.inputs:
@@ -295,7 +295,7 @@ filebeat.inputs:
   fields_under_root: true
 
 - type: filestream
-  id: wazuh-archives  
+  id: wazuh-archives
   paths:
     - /var/ossec/logs/archives/archives.json
   fields:
@@ -323,7 +323,7 @@ EOF
 
     # Restart Wazuh manager
     ${DOCKER} restart wazuh-manager
-    
+
     sleep 30
     if ${DOCKER} ps | grep -q wazuh-manager; then
         success "Wazuh Manager configuration fixed"
@@ -335,7 +335,7 @@ EOF
 # Phase 2: Network Security Implementation
 implement_network_security() {
     info "Phase 2: Implementing Network Security Rules"
-    
+
     # Create comprehensive firewall rules
     cat > /home/mills/collections/network-security/comprehensive-firewall-rules.sh << 'EOF'
 #!/bin/bash
@@ -361,17 +361,17 @@ echo "Network security rules applied (non-destructive)"
 EOF
 
     chmod +x /home/mills/collections/network-security/comprehensive-firewall-rules.sh
-    
+
     # Apply rules safely
     /home/mills/collections/network-security/comprehensive-firewall-rules.sh
-    
+
     success "Network security rules implemented"
 }
 
 # Phase 3: Enhanced Backup Automation
 implement_backup_automation() {
     info "Phase 3: Implementing Enhanced Backup Automation"
-    
+
     cat > /home/mills/collections/backup/comprehensive-backup.sh << 'EOF'
 #!/bin/bash
 # Comprehensive Backup Automation
@@ -408,17 +408,17 @@ echo "Backup completed: $TIMESTAMP"
 EOF
 
     chmod +x /home/mills/collections/backup/comprehensive-backup.sh
-    
+
     # Add to crontab
     (crontab -l 2>/dev/null | grep -v "comprehensive-backup"; echo "0 3 * * * /home/mills/collections/backup/comprehensive-backup.sh >> /home/mills/logs/backup.log 2>&1") | crontab -
-    
+
     success "Enhanced backup automation implemented"
 }
 
 # Phase 4: Container Security Hardening
 implement_container_security() {
     info "Phase 4: Implementing Container Security Scanning"
-    
+
     cat > /home/mills/collections/security/container-security-scan.sh << 'EOF'
 #!/bin/bash
 # Container Security Scanning
@@ -447,17 +447,17 @@ echo "Security scan completed: $SCAN_RESULTS"
 EOF
 
     chmod +x /home/mills/collections/security/container-security-scan.sh
-    
+
     # Run initial scan
     /home/mills/collections/security/container-security-scan.sh
-    
+
     success "Container security scanning implemented"
 }
 
 # Phase 5: Monitoring Optimization
 optimize_monitoring_alerts() {
     info "Phase 5: Optimizing Monitoring and Alerting"
-    
+
     # Update Prometheus configuration with optimized scrape intervals
     cat > /home/mills/collections/prometheus/optimized-prometheus.yml << 'EOF'
 global:
@@ -557,7 +557,7 @@ EOF
 # Phase 6: Log Management
 implement_log_management() {
     info "Phase 6: Implementing Log Rotation and Cleanup"
-    
+
     cat > /home/mills/collections/logging/log-management.sh << 'EOF'
 #!/bin/bash
 # Log Management and Rotation
@@ -593,17 +593,17 @@ echo "Log management completed: $(date)"
 EOF
 
     chmod +x /home/mills/collections/logging/log-management.sh
-    
+
     # Add to crontab
     (crontab -l 2>/dev/null | grep -v "log-management"; echo "0 4 * * * /home/mills/collections/logging/log-management.sh >> /home/mills/logs/log-management.log 2>&1") | crontab -
-    
+
     success "Log management and rotation implemented"
 }
 
 # Phase 7: Configuration Validation
 implement_configuration_validation() {
     info "Phase 7: Implementing Configuration Validation"
-    
+
     cat > /home/mills/collections/validation/config-validator.sh << 'EOF'
 #!/bin/bash
 # Configuration Validation Script
@@ -656,38 +656,38 @@ echo "Report saved to: $VALIDATION_LOG"
 EOF
 
     chmod +x /home/mills/collections/validation/config-validator.sh
-    
+
     # Run initial validation
     /home/mills/collections/validation/config-validator.sh
-    
+
     success "Configuration validation implemented"
 }
 
 # Main execution function
 main() {
     log "🚀 Starting Comprehensive Infrastructure Fix Implementation"
-    
+
     # Create necessary directories
     mkdir -p /home/mills/collections/{backup,security,logging,validation}
-    
+
     # Execute all phases
     fix_mysql_exporter
     fix_threat_intelligence
     fix_security_monitor
     fix_wazuh_manager
-    
+
     implement_network_security
     implement_backup_automation
     implement_container_security
     optimize_monitoring_alerts
     implement_log_management
     implement_configuration_validation
-    
+
     log "🎉 Comprehensive infrastructure fixes and enhancements completed!"
-    
+
     # Generate final status report
     ${DOCKER} ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" > "/home/mills/logs/final-status-${TIMESTAMP}.log"
-    
+
     success "All implementations completed successfully"
     info "Log file: $LOG_FILE"
     info "Final status: /home/mills/logs/final-status-${TIMESTAMP}.log"

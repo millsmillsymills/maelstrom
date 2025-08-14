@@ -81,6 +81,7 @@ def secrets_helper():
         # Import our helper module directly from service collections path
         import importlib.util
         import pathlib
+
         root = pathlib.Path(__file__).resolve().parents[1]
         service_path = root / ".." / "collections" / "ml_analytics"
         spec = importlib.util.spec_from_file_location(

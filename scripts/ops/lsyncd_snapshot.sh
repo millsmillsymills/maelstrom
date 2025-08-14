@@ -26,4 +26,3 @@ mkdir -p "$OUT_DIR"
 } > "$OUT"
 
 echo "Wrote $OUT"
-

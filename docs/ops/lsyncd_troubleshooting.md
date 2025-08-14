@@ -36,4 +36,3 @@ systemctl is-active codex-home-sync.service
 - Service becomes `active`.
 - Lsyncd log shows steady syncing without repeated backoffs.
 - No errors in `journalctl -u codex-home-sync.service` for 5–10 minutes after restart.
-

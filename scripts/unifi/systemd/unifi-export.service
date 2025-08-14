@@ -1,0 +1,20 @@
+[Unit]
+Description=UniFi Data Export
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h
+ExecStart=%h/scripts/unifi/unifi_export.sh --resources all --format both --since 24h
+TimeoutStartSec=900
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+ProtectSystem=full
+ProtectHome=no
+NoNewPrivileges=yes
+AmbientCapabilities=
+
+[Install]
+WantedBy=default.target

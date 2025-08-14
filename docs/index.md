@@ -7,6 +7,7 @@
 - Archive: docs/archive/
 
 ## Pages
+- Contributor Guides: [AGENTS.md](../AGENTS.md), [CONTRIBUTING.md](../CONTRIBUTING.md), [SECURITY.md](../SECURITY.md)
 - [🚀 Monitoring Stack Activation Guide](docs/archive/ACTIVATION-GUIDE.md)
 - [🌐 **MAELSTROM.LOCAL ACCESS SOLUTION**](docs/archive/CLIENT_ACCESS_SOLUTION.md)
 - [Comprehensive Configuration Quality Assessment](docs/archive/COMPREHENSIVE_CONFIG_ASSESSMENT_2025-06-24.md)

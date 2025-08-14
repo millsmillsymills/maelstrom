@@ -39,7 +39,7 @@ printf "%-30s %-15s %-30s\n" "$(printf '%.0s-' {1..30})" "$(printf '%.0s-' {1..1
 ${DOCKER} compose ps | tail -n +3 | while read line; do
     container=$(echo "$line" | awk '{print $1}')
     status=$(echo "$line" | awk '{print $4}' | sed 's/Up/RUNNING/g; s/Exit/STOPPED/g; s/Restarting/RESTARTING/g')
-    
+
     # Extract health status if present
     if echo "$line" | grep -q "(healthy)"; then
         health="HEALTHY"
@@ -50,7 +50,7 @@ ${DOCKER} compose ps | tail -n +3 | while read line; do
     else
         health="UNKNOWN"
     fi
-    
+
     printf "%-30s %-15s %-30s\n" "$container" "$status" "$health"
 done
 echo ""
@@ -59,7 +59,7 @@ echo ""
 echo "STORAGE USAGE ANALYSIS"
 echo "======================"
 echo "Collections directory: $(du -sh /home/mills/collections 2>/dev/null | awk '{print $1}' || echo 'N/A')"
-echo "Logs directory: $(du -sh /home/mills/logs 2>/dev/null | awk '{print $1}' || echo 'N/A')"  
+echo "Logs directory: $(du -sh /home/mills/logs 2>/dev/null | awk '{print $1}' || echo 'N/A')"
 echo "Backups directory: $(du -sh /home/mills/backups 2>/dev/null | awk '{print $1}' || echo 'N/A')"
 
 # Docker volume usage
@@ -123,7 +123,7 @@ fi
 
 echo ""
 
-# Service restart analysis  
+# Service restart analysis
 echo "RECENT CONTAINER RESTARTS"
 echo "========================="
 echo "Checking for containers that have restarted recently..."
@@ -136,7 +136,7 @@ echo "======================="
 if curl -s http://localhost:9093/api/v1/alerts >/dev/null 2>&1; then
     active_alerts=$(curl -s http://localhost:9093/api/v1/alerts | jq -r '.data[] | select(.status.state=="active") | .labels.alertname' 2>/dev/null | wc -l)
     echo "Active alerts: ${active_alerts:-0}"
-    
+
     if [ "${active_alerts:-0}" -gt 0 ]; then
         echo ""
         echo "Active Alert Details:"
@@ -169,7 +169,7 @@ disk_usage=$(df / | awk 'NR==2{print $5}' | sed 's/%//')
 if [ $disk_usage -gt 85 ]; then
     echo "⚠️  HIGH DISK USAGE: ${disk_usage}% - Cleanup recommended"
 elif [ $disk_usage -gt 70 ]; then
-    echo "⚡ MODERATE DISK USAGE: ${disk_usage}% - Monitor disk trends" 
+    echo "⚡ MODERATE DISK USAGE: ${disk_usage}% - Monitor disk trends"
 else
     echo "✅ DISK USAGE: ${disk_usage}% - Optimal"
 fi

@@ -33,25 +33,25 @@ clear_screen() {
 get_service_status() {
     echo -e "${BLUE}📊 SERVICE STATUS${NC}"
     echo "────────────────────────────────────────────────────────────────────────"
-    
+
     local healthy=0
     local unhealthy=0
     local starting=0
-    
+
     # Get container status
     while IFS= read -r line; do
         if [[ -z "$line" ]]; then
             continue
         fi
-        
+
         local name status state health
         name=$(echo "$line" | cut -d: -f1)
         status=$(echo "$line" | cut -d: -f2)
         state=$(echo "$line" | cut -d: -f3)
-        
+
         # Get health status
         health=$(${DOCKER} inspect "$name" --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
-        
+
         # Determine display status
         local display_status color
         if [[ "$state" == "running" ]]; then
@@ -82,11 +82,11 @@ get_service_status() {
             color="$RED"
             ((unhealthy++))
         fi
-        
+
         printf "${color}%-25s${NC} %s\n" "$name" "$display_status"
-        
+
     done < <(${DOCKER} ps --format "{{.Names}}:{{.Status}}:{{.State}}" 2>/dev/null || true)
-    
+
     echo ""
     echo -e "${GREEN}✅ Healthy: $healthy${NC}  ${YELLOW}🟡 Starting: $starting${NC}  ${RED}❌ Unhealthy: $unhealthy${NC}"
     echo ""
@@ -96,17 +96,17 @@ get_service_status() {
 get_resource_usage() {
     echo -e "${BLUE}💾 RESOURCE USAGE${NC}"
     echo "────────────────────────────────────────────────────────────────────────"
-    
+
     # System resources
     local cpu_usage mem_usage disk_usage
     cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
     mem_usage=$(free | grep Mem | awk '{printf "%.1f", $3/$2 * 100.0}')
     disk_usage=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
-    
+
     echo -e "${PURPLE}System Resources:${NC}"
     printf "  CPU: %s%%  Memory: %s%%  Disk: %s%%\n" "$cpu_usage" "$mem_usage" "$disk_usage"
     echo ""
-    
+
     # Docker stats (top 10 by memory)
     echo -e "${PURPLE}Top Containers by Memory:${NC}"
     ${DOCKER} stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" 2>/dev/null | \
@@ -120,13 +120,13 @@ get_resource_usage() {
 get_alert_status() {
     echo -e "${BLUE}🚨 ALERT STATUS${NC}"
     echo "────────────────────────────────────────────────────────────────────────"
-    
+
     # Check Prometheus alerts
     local prom_alerts
     if prom_alerts=$(curl -s http://localhost:9090/api/v1/alerts 2>/dev/null); then
         local active_count
         active_count=$(echo "$prom_alerts" | jq -r '.data[] | select(.state=="firing") | .labels.alertname' 2>/dev/null | wc -l || echo "0")
-        
+
         if [[ $active_count -gt 0 ]]; then
             echo -e "${RED}🚨 $active_count active Prometheus alerts${NC}"
             echo "$prom_alerts" | jq -r '.data[] | select(.state=="firing") | "  - \(.labels.alertname): \(.labels.severity // "unknown")"' 2>/dev/null || true
@@ -136,13 +136,13 @@ get_alert_status() {
     else
         echo -e "${YELLOW}⚠️  Prometheus not accessible${NC}"
     fi
-    
+
     # Check Alertmanager
     local am_alerts
     if am_alerts=$(curl -s http://localhost:9093/api/v1/alerts 2>/dev/null); then
         local am_active_count
         am_active_count=$(echo "$am_alerts" | jq -r '.data[] | select(.status.state=="active") | .labels.alertname' 2>/dev/null | wc -l || echo "0")
-        
+
         if [[ $am_active_count -gt 0 ]]; then
             echo -e "${RED}🚨 $am_active_count active Alertmanager alerts${NC}"
         else
@@ -151,7 +151,7 @@ get_alert_status() {
     else
         echo -e "${YELLOW}⚠️  Alertmanager not accessible${NC}"
     fi
-    
+
     echo ""
 }
 
@@ -159,15 +159,15 @@ get_alert_status() {
 get_github_status() {
     echo -e "${BLUE}🔗 GITHUB INTEGRATION${NC}"
     echo "────────────────────────────────────────────────────────────────────────"
-    
+
     # Check Git status
     cd "$PROJECT_ROOT" || return 1
-    
+
     local git_status branch
     if git_status=$(git status --porcelain 2>/dev/null); then
         branch=$(git branch --show-current 2>/dev/null || echo "unknown")
         echo -e "${GREEN}📋 Git Status: Connected (branch: $branch)${NC}"
-        
+
         if [[ -n "$git_status" ]]; then
             local changes
             changes=$(echo "$git_status" | wc -l)
@@ -175,7 +175,7 @@ get_github_status() {
         else
             echo -e "${GREEN}✅ Working directory clean${NC}"
         fi
-        
+
         # Last commit info
         local last_commit
         last_commit=$(git log -1 --pretty=format:"%h %s (%cr)" 2>/dev/null || echo "No commits")
@@ -183,14 +183,14 @@ get_github_status() {
     else
         echo -e "${RED}❌ Git repository not accessible${NC}"
     fi
-    
+
     # Check GitHub connectivity
     if python3 scripts/github_issue_manager.py list >/dev/null 2>&1; then
         echo -e "${GREEN}🌐 GitHub API: Connected${NC}"
     else
         echo -e "${RED}❌ GitHub API: Connection failed${NC}"
     fi
-    
+
     # Recent backup status
     if [[ -f "logs/git_backup_error.log" ]]; then
         local last_backup
@@ -199,7 +199,7 @@ get_github_status() {
     else
         echo -e "${YELLOW}💾 No backup log found${NC}"
     fi
-    
+
     echo ""
 }
 
@@ -207,7 +207,7 @@ get_github_status() {
 get_endpoints_status() {
     echo -e "${BLUE}🌐 SERVICE ENDPOINTS${NC}"
     echo "────────────────────────────────────────────────────────────────────────"
-    
+
     local endpoints=(
         "Grafana:http://localhost:3000/api/health"
         "Prometheus:http://localhost:9090/-/ready"
@@ -215,19 +215,19 @@ get_endpoints_status() {
         "InfluxDB:http://localhost:8086/ping"
         "Loki:http://localhost:3100/ready"
     )
-    
+
     for endpoint in "${endpoints[@]}"; do
         local name url
         name=$(echo "$endpoint" | cut -d: -f1)
         url=$(echo "$endpoint" | cut -d: -f2-)
-        
+
         if curl -f -s --max-time 5 "$url" >/dev/null 2>&1; then
             echo -e "${GREEN}✅ $name${NC} - Accessible"
         else
             echo -e "${RED}❌ $name${NC} - Not responding"
         fi
     done
-    
+
     echo ""
 }
 
@@ -235,7 +235,7 @@ get_endpoints_status() {
 get_logs_summary() {
     echo -e "${BLUE}📋 RECENT ACTIVITY${NC}"
     echo "────────────────────────────────────────────────────────────────────────"
-    
+
     # Validation log
     local validation_log
     validation_log=$(ls -t /tmp/stack_validation_*.log 2>/dev/null | head -1 || echo "")
@@ -243,7 +243,7 @@ get_logs_summary() {
         local validation_time
         validation_time=$(stat -c %y "$validation_log" 2>/dev/null | cut -d. -f1 || echo "Unknown")
         echo -e "${CYAN}🔍 Last validation: $validation_time${NC}"
-        
+
         if tail -5 "$validation_log" 2>/dev/null | grep -q "SUCCESS"; then
             echo -e "${GREEN}   ✅ Validation passed${NC}"
         else
@@ -252,14 +252,14 @@ get_logs_summary() {
     else
         echo -e "${YELLOW}🔍 No recent validation logs${NC}"
     fi
-    
+
     # Docker events (last 10)
     echo -e "${CYAN}🐳 Recent Docker events:${NC}"
     ${DOCKER} events --since="5m" --format "{{.Time}} {{.Action}} {{.Actor.Attributes.name}}" 2>/dev/null | tail -5 | \
         while read -r line; do
             echo "   $line"
         done || echo "   No recent events"
-    
+
     echo ""
 }
 
@@ -268,7 +268,7 @@ show_menu() {
     echo -e "${PURPLE}ACTIONS:${NC}"
     echo "────────────────────────────────────────────────────────────────────────"
     echo "  [v] Run validation      [b] Backup config       [d] Deploy stack"
-    echo "  [r] Restart service     [l] View logs           [g] Git status"  
+    echo "  [r] Restart service     [l] View logs           [g] Git status"
     echo "  [i] GitHub issues       [s] Security scan       [h] Help"
     echo "  [q] Quit               [ENTER] Refresh"
     echo ""
@@ -278,7 +278,7 @@ show_menu() {
 handle_input() {
     local choice
     read -t 1 -n 1 choice || return 0
-    
+
     case "$choice" in
         "v"|"V")
             echo -e "\n${BLUE}Running validation...${NC}"
@@ -293,7 +293,7 @@ handle_input() {
         "d"|"D")
             echo -e "\n${BLUE}Available deployment options:${NC}"
             echo "1) Base stack only"
-            echo "2) With ML analytics" 
+            echo "2) With ML analytics"
             echo "3) With security stack"
             echo "4) All profiles"
             read -p "Choose option (1-4): " deploy_choice
@@ -351,13 +351,13 @@ handle_input() {
 main() {
     echo -e "${GREEN}Starting Maelstrom Monitoring Dashboard...${NC}"
     sleep 2
-    
+
     while true; do
         clear_screen
-        
+
         # Update README status silently
         python3 scripts/update_readme_status.py >/dev/null 2>&1 || true
-        
+
         # Display all sections
         get_service_status
         get_resource_usage
@@ -366,9 +366,9 @@ main() {
         get_endpoints_status
         get_logs_summary
         show_menu
-        
+
         echo -e "${CYAN}Last updated: $(date)${NC} | Auto-refresh in ${REFRESH_INTERVAL}s"
-        
+
         # Handle input with timeout
         handle_input
     done

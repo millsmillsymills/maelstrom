@@ -26,7 +26,7 @@ sleep 10
 echo "  Starting data collection services..."
 ${DOCKER} compose up -d plex-data-collector telegraf
 
-# Start monitoring services  
+# Start monitoring services
 echo "  Starting monitoring services..."
 ${DOCKER} compose up -d cadvisor node-exporter mysql-exporter
 
@@ -43,7 +43,7 @@ echo "📋 Phase 3: Advanced Monitoring Services"
 echo "  Attempting Prometheus with IP 172.30.0.43..."
 ${DOCKER} compose up -d prometheus 2>/dev/null || echo "  ⚠️  Prometheus startup failed - manual intervention required"
 
-echo "  Attempting UniFi Poller with IP 172.30.0.42..."  
+echo "  Attempting UniFi Poller with IP 172.30.0.42..."
 ${DOCKER} compose up -d unpoller 2>/dev/null || echo "  ⚠️  UniFi Poller startup failed - manual intervention required"
 
 # Phase 4: Service Status Report
@@ -73,7 +73,7 @@ else
     echo "❌ Grafana: http://localhost:3000 - Failed"
 fi
 
-# InfluxDB  
+# InfluxDB
 if curl -s http://localhost:8086/health >/dev/null 2>&1; then
     echo "✅ InfluxDB: http://localhost:8086 - Operational"
 else
@@ -89,7 +89,7 @@ fi
 
 # Alertmanager
 if curl -s http://localhost:9093/api/v1/status >/dev/null 2>&1; then
-    echo "✅ Alertmanager: http://localhost:9093 - Operational"  
+    echo "✅ Alertmanager: http://localhost:9093 - Operational"
 else
     echo "❌ Alertmanager: http://localhost:9093 - Failed"
 fi
@@ -105,14 +105,14 @@ fi
 if curl -s http://localhost:8081/metrics >/dev/null 2>&1; then
     echo "✅ cAdvisor: http://localhost:8081/metrics - Operational"
 else
-    echo "❌ cAdvisor: http://localhost:8081/metrics - Failed"  
+    echo "❌ cAdvisor: http://localhost:8081/metrics - Failed"
 fi
 
 echo ""
 echo "🔧 Next Steps:"
 echo "=============="
 echo "1. Review INFRASTRUCTURE_OPTIMIZATION_REPORT.md for detailed analysis"
-echo "2. Enable SNMP on UniFi Gateway (192.168.1.1) for device monitoring" 
+echo "2. Enable SNMP on UniFi Gateway (192.168.1.1) for device monitoring"
 echo "3. Fix Wazuh configuration (see report Phase 2.1)"
 echo "4. Start security services: ${DOCKER} compose up -d wazuh-elasticsearch wazuh-manager"
 echo "5. Monitor service logs: ${DOCKER} compose logs -f [service_name]"
@@ -121,7 +121,7 @@ echo ""
 echo "🎯 Critical Issues Addressed:"
 echo "============================="
 echo "✅ ntopng port configuration fixed"
-echo "✅ Docker Compose IP conflicts resolved"  
+echo "✅ Docker Compose IP conflicts resolved"
 echo "✅ Core monitoring services restored"
 echo "⚠️  External container conflicts require manual resolution"
 echo "⚠️  Security services need additional configuration"
