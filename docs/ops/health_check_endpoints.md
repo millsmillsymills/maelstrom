@@ -12,4 +12,3 @@ Notes:
 - Grafana’s root (`/`) may issue a 302 redirect to login; avoid HEAD on `/`.
 - Alertmanager may return 405 to HEAD; use GET on `/-/ready`.
 - Prefer probe jobs (blackbox) for end-to-end http checks where applicable.
-

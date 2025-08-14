@@ -82,7 +82,7 @@
     "backup_location": "/home/mills/maelstrom-backup/rollback/20250807_230948",
     "files_backed_up": [
       "prometheus/",
-      "alertmanager/", 
+      "alertmanager/",
       "grafana/",
       ".env.backup"
     ]
@@ -107,7 +107,7 @@
   "implementation_notes": {
     "successes": [
       "Prometheus configured with Resurgent scrape targets",
-      "Alertmanager enhanced with SLO routing and grouping", 
+      "Alertmanager enhanced with SLO routing and grouping",
       "SLO alert rules implemented",
       "REST API shim deployed and operational",
       "Configuration backup system established",

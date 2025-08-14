@@ -21,8 +21,13 @@ def api_key_auth(credentials: HTTPAuthorizationCredentials = Depends(bearer_sche
     api_key = _get_api_key()
     if not api_key:
         # If no key configured, block access by default
-        raise HTTPException(status_code=503, detail="API not configured: missing API_KEY")
-    if credentials is None or credentials.scheme.lower() != "bearer" or credentials.credentials != api_key:
+        raise HTTPException(
+            status_code=503, detail="API not configured: missing API_KEY"
+        )
+    if (
+        credentials is None
+        or credentials.scheme.lower() != "bearer"
+        or credentials.credentials != api_key
+    ):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
-

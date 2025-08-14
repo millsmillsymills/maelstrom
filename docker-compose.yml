@@ -1,4 +1,6 @@
-version: '3.8'
+############################
+# docker-compose.yml (v2)
+############################
 
 x-logging: &default-logging
   driver: "json-file"
@@ -16,7 +18,6 @@ x-deploy: &default-deploy
 services:
   influxdb:
     image: influxdb:1.8
-    container_name: influxdb
     ports:
       - "0.0.0.0:8086:8086"
     volumes:
@@ -53,7 +54,6 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    container_name: grafana
     ports:
       - "0.0.0.0:3000:3000"
     volumes:
@@ -84,8 +84,6 @@ services:
       - /tmp:rw,noexec,nosuid,size=100m
     logging: *default-logging
     deploy:
-      mode: replicated
-      replicas: 2
       resources:
         limits:
           memory: 2G
@@ -97,7 +95,6 @@ services:
 
   unpoller:
     image: ghcr.io/unpoller/unpoller:${POLLER_TAG}
-    container_name: unpoller
     depends_on:
       - influxdb
     environment:
@@ -130,7 +127,6 @@ services:
 
   prometheus:
     image: prom/prometheus:latest
-    container_name: prometheus
     volumes:
       - /home/mills/collections/prometheus:/etc/prometheus:ro
       - prometheus_data:/prometheus
@@ -174,7 +170,6 @@ services:
 
   pihole:
     image: pihole/pihole:latest
-    container_name: pihole
     networks:
       pihole_macvlan:
         ipv4_address: 192.168.1.250
@@ -209,7 +204,6 @@ services:
 
   pihole-secondary:
     image: pihole/pihole:latest
-    container_name: pihole-secondary
     ports:
       - "5353:53/tcp"
       - "5353:53/udp"
@@ -247,7 +241,6 @@ services:
 
   zabbix-server:
     image: zabbix/zabbix-server-mysql:latest
-    container_name: zabbix-server
     environment:
       - DB_SERVER_HOST=${ZABBIX_DB_HOST}
       - MYSQL_USER=${ZABBIX_DB_USER}
@@ -277,7 +270,6 @@ services:
 
   zabbix-web:
     image: zabbix/zabbix-web-nginx-mysql:latest
-    container_name: zabbix-web
     environment:
       - DB_SERVER_HOST=${ZABBIX_DB_HOST}
       - MYSQL_USER=${ZABBIX_DB_USER}
@@ -309,7 +301,6 @@ services:
 
   zabbix-mysql:
     image: mysql:8.0
-    container_name: zabbix-mysql
     environment:
       - MYSQL_ROOT_PASSWORD=${ZABBIX_MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=${ZABBIX_DB_NAME}
@@ -345,7 +336,6 @@ services:
 
   plex-data-collector:
     build: /home/mills/collections/Plex-Data-Collector-For-InfluxDB
-    container_name: plex-data-collector
     depends_on:
       - influxdb
     environment:
@@ -360,7 +350,6 @@ services:
 
   telegraf:
     image: telegraf:1.27
-    container_name: telegraf
     ports:
       - "9273:9273"
     volumes:
@@ -392,7 +381,6 @@ services:
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
-    container_name: cadvisor
     ports:
       - "8081:8080"
     volumes:
@@ -421,7 +409,6 @@ services:
 
   node-exporter:
     image: prom/node-exporter:latest
-    container_name: node-exporter
     ports:
       - "0.0.0.0:9100:9100"
     volumes:
@@ -454,7 +441,6 @@ services:
 
   mysql-exporter:
     image: prom/mysqld-exporter:latest
-    container_name: mysql-exporter
     command:
       - '--mysqld.address=zabbix-mysql:3306'
       - '--config.my-cnf=/etc/mysql/.my.cnf'
@@ -485,7 +471,6 @@ services:
 
   blackbox-exporter:
     image: prom/blackbox-exporter:latest
-    container_name: blackbox-exporter
     ports:
       - "9115:9115"
     volumes:
@@ -511,7 +496,6 @@ services:
 
   alertmanager:
     image: prom/alertmanager:latest
-    container_name: alertmanager
     ports:
       - "0.0.0.0:9093:9093"
     volumes:
@@ -552,7 +536,6 @@ services:
 
   loki:
     image: grafana/loki:latest
-    container_name: loki
     ports:
       - "3100:3100"
     volumes:
@@ -580,7 +563,6 @@ services:
 
   promtail:
     image: grafana/promtail:latest
-    container_name: promtail
     volumes:
       - /var/log:/var/log:ro
       - /home/mills/collections/promtail:/etc/promtail
@@ -609,7 +591,6 @@ services:
 
   snmp-exporter:
     image: prom/snmp-exporter:latest
-    container_name: snmp-exporter
     ports:
       - "9116:9116"
     volumes:
@@ -635,7 +616,6 @@ services:
 
   slack-notifier:
     image: python:3.11-slim
-    container_name: slack-notifier
     ports:
       - "5001:5001"
     volumes:
@@ -665,7 +645,6 @@ services:
 
   network-discovery:
     image: python:3.11-slim
-    container_name: network-discovery
     profiles: [networking]
     volumes:
       - /home/mills/networking/collections/network-discovery:/app
@@ -697,7 +676,6 @@ services:
 
   security-monitor:
     image: python:3.11-slim
-    container_name: security-monitor
     volumes:
       - /home/mills/security/collections/security-monitoring:/app
       - /home/mills/collections:/monitor/collections:ro
@@ -732,7 +710,6 @@ services:
 
   ml-analytics:
     image: python:3.11-slim
-    container_name: ml-analytics
     volumes:
       - /home/mills/collections/ml-analytics:/app
       - /home/mills/secrets:/secrets:ro
@@ -761,7 +738,6 @@ services:
   # IoT Integration and Edge Computing Stack
   iot-integration:
     image: python:3.11-slim
-    container_name: iot-integration
     volumes:
       - /home/mills/collections/iot-integration:/app
       - /home/mills/secrets:/secrets:ro
@@ -798,7 +774,6 @@ services:
 
   edge-processor:
     image: python:3.11-slim
-    container_name: edge-processor
     volumes:
       - /home/mills/collections/iot-integration:/app
       - /home/mills/secrets:/secrets:ro
@@ -834,7 +809,6 @@ services:
   # Advanced Alerting and Notification Stack
   advanced-alerting:
     image: python:3.11-slim
-    container_name: advanced-alerting
     volumes:
       - /home/mills/collections/advanced-alerting:/app
       - /home/mills/secrets:/secrets:ro
@@ -870,7 +844,6 @@ services:
   # Backup and Disaster Recovery Stack
   backup-recovery:
     image: python:3.11-slim
-    container_name: backup-recovery
     volumes:
       - /home/mills/collections/backup-recovery:/app
       - /home/mills/secrets:/secrets:ro
@@ -909,7 +882,6 @@ services:
   # Global Monitoring Federation Stack
   global-federation:
     image: python:3.11-slim
-    container_name: global-federation
     volumes:
       - /home/mills/collections/federation:/app
       - /home/mills/secrets:/secrets:ro
@@ -946,7 +918,6 @@ services:
   # Wazuh SIEM Stack
   wazuh-elasticsearch:
     image: elasticsearch:7.17.23
-    container_name: wazuh-elasticsearch
     environment:
       - discovery.type=single-node
       - cluster.name=wazuh-cluster
@@ -979,7 +950,6 @@ services:
 
   wazuh-manager:
     image: wazuh/wazuh-manager:4.9.1
-    container_name: wazuh-manager
     hostname: wazuh-manager
     restart: unless-stopped
     ulimits:
@@ -1029,7 +999,6 @@ services:
 
   wazuh-dashboard:
     image: wazuh/wazuh-dashboard:4.9.1
-    container_name: wazuh-dashboard
     hostname: wazuh-dashboard
     restart: unless-stopped
     ports:
@@ -1064,7 +1033,6 @@ services:
   # Suricata Network Intrusion Detection
   suricata:
     image: jasonish/suricata:latest
-    container_name: suricata
     network_mode: host
     cap_add:
       - NET_ADMIN
@@ -1092,7 +1060,6 @@ services:
   # Zeek Network Analysis Platform
   zeek:
     image: zeek/zeek:latest
-    container_name: zeek
     network_mode: host
     cap_add:
       - NET_ADMIN
@@ -1120,7 +1087,6 @@ services:
   # ntopng Network Traffic Analysis
   ntopng:
     image: ntop/ntopng:latest
-    container_name: ntopng
     ports:
       - "3001:3000"
     networks:
@@ -1155,7 +1121,6 @@ services:
   # Jaeger Distributed Tracing
   jaeger:
     image: jaegertracing/all-in-one:latest
-    container_name: jaeger
     ports:
       - "16686:16686"  # Jaeger UI
       - "14268:14268"  # Jaeger collector HTTP
@@ -1182,7 +1147,6 @@ services:
   # Unraid Server and Docker Monitoring
   unraid-monitor:
     image: python:3.11-slim
-    container_name: unraid-monitor
     working_dir: /app
     command: bash -c "
       pip install -r requirements.txt &&
@@ -1213,7 +1177,6 @@ services:
   # Geopolitical Threat Intelligence
   threat-intelligence:
     image: python:3.11-slim
-    container_name: threat-intelligence
     working_dir: /app
     command: bash -c "
       pip install -r requirements.txt &&
@@ -1245,7 +1208,6 @@ services:
   # Enhanced Geopolitical Threat Detection
   geopolitical-threat-detector:
     image: python:3.11-slim
-    container_name: geopolitical-threat-detector
     working_dir: /app
     command: bash -c "
       apt-get update &&
@@ -1279,7 +1241,6 @@ services:
   # Automated Threat Response System
   threat-response:
     image: python:3.11-slim
-    container_name: threat-response
     working_dir: /app
     command: bash -c "
       apt-get update &&
@@ -1314,7 +1275,6 @@ services:
   # Data Optimization and Lifecycle Management
   data-optimizer:
     image: python:3.11-slim
-    container_name: data-optimizer
     working_dir: /app
     command: bash -c "
       pip install -r requirements.txt &&
@@ -1347,7 +1307,6 @@ services:
   # Self-Healing Infrastructure
   self-healing:
     image: python:3.11-slim
-    container_name: self-healing
     working_dir: /app
     command: bash -c "
       apt-get update && apt-get install -y cron openssl &&
@@ -1386,7 +1345,6 @@ services:
   # Maelstrom Server Monitoring
   maelstrom-monitor:
     image: python:3.11-slim
-    container_name: maelstrom-monitor
     working_dir: /app
     command: bash -c "
       pip install -r requirements.txt &&
@@ -1416,7 +1374,6 @@ services:
   # Enhanced Resource Optimizer and Monitor
   resource-optimizer:
     image: python:3.11-slim
-    container_name: resource-optimizer
     working_dir: /app
     command: bash -c "
       apt-get update && apt-get install -y procps &&
@@ -1454,7 +1411,6 @@ services:
   # SWAG Reverse Proxy for secure SSL access to all monitoring services
   swag:
     image: lscr.io/linuxserver/swag:latest
-    container_name: swag
     profiles:
       - reverse-proxy
     cap_add:
@@ -1498,8 +1454,7 @@ services:
 
   # HashiCorp Vault - Secrets Management
   vault:
-    image: hashicorp/vault:latest
-    container_name: vault
+    image: hashicorp/vault:${VAULT_TAG:-latest}
     ports:
       - "0.0.0.0:8200:8200"
     volumes:
@@ -1539,7 +1494,6 @@ services:
   # Trivy Vulnerability Scanner
   trivy:
     image: aquasec/trivy:latest
-    container_name: trivy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - trivy_cache:/root/.cache/trivy
@@ -1572,7 +1526,6 @@ services:
     build:
       context: /home/mills/maelstrom-api
       dockerfile: Dockerfile
-    container_name: maelstrom-api
     ports:
       - "0.0.0.0:8000:8000"
     environment:
@@ -1604,7 +1557,6 @@ services:
   # AutoOps Service
   autoops:
     image: python:3.11-slim
-    container_name: autoops
     working_dir: /app
     command: bash -c "pip install -r requirements.txt && python autoops_service.py"
     ports:
@@ -1651,7 +1603,6 @@ services:
   # Threat Orchestrator Service
   threat-orchestrator:
     image: python:3.11-slim
-    container_name: threat-orchestrator
     working_dir: /app
     command: bash -c "pip install -r requirements.txt && python threat_orchestrator.py"
     ports:

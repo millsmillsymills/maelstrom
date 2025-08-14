@@ -31,4 +31,3 @@ Deprecated Patterns (removed)
 CI Behavior
 - GitHub Actions job `auth-smoke` validates REST, GraphQL, and git (dry-run push) without prompts.
 - Prefer default `${{ github.token }}`; mapped to `GITHUB_PAT` for provider compatibility.
-

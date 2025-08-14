@@ -10,4 +10,3 @@ from collections.ml_analytics.secrets_helper import (
     get_slack_webhook,
     get_api_key,
 )
-

@@ -30,7 +30,11 @@ def test_oauth_then_probe_fail_then_pat(monkeypatch):
         pass
 
     # Mock refresh to return token, but probe returns 401
-    monkeypatch.setattr(tp, "_oauth_refresh", lambda cid, csec, rtok: tp.Token("oauth_tok", "bearer", source="oauth"))
+    monkeypatch.setattr(
+        tp,
+        "_oauth_refresh",
+        lambda cid, csec, rtok: tp.Token("oauth_tok", "bearer", source="oauth"),
+    )
 
     probes = {"oauth_tok": [401, 401, 401], "fallback_pat": [200]}
 
@@ -59,4 +63,3 @@ def test_error_when_no_creds(monkeypatch):
         assert False, "expected exception"
     except tp.TokenError:
         pass
-

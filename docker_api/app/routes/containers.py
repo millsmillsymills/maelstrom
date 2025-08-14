@@ -19,18 +19,33 @@ from ..models.schemas import (
 router = APIRouter()
 
 
-def _match_filters(container, status: Optional[str], label: Optional[str], name_regex: Optional[str]) -> bool:
+def _match_filters(
+    container, status: Optional[str], label: Optional[str], name_regex: Optional[str]
+) -> bool:
     try:
         c_status = (container.status or "").lower()
         if status and c_status != status.lower():
             return False
         if label:
-            labels = (container.labels or {})
-            if label not in labels and not any(k == label or f"{k}={v}" == label for k, v in labels.items()):
+            labels = container.labels or {}
+            if label not in labels and not any(
+                k == label or f"{k}={v}" == label for k, v in labels.items()
+            ):
                 return False
         if name_regex:
             pattern = re.compile(name_regex)
-            names = [container.name] + [n.lstrip("/") for n in (container.attrs.get("Name", ""), *container.attrs.get("Names", []) if isinstance(container.attrs.get("Names", []), list) else [])]
+            names: List[str] = []
+            # Primary name
+            if getattr(container, "name", None):
+                names.append(container.name.lstrip("/"))
+            # Attributes: single name and list of names
+            attrs = getattr(container, "attrs", {}) or {}
+            single = attrs.get("Name", "")
+            if isinstance(single, str) and single:
+                names.append(single.lstrip("/"))
+            raw_names = attrs.get("Names", [])
+            if isinstance(raw_names, list):
+                names.extend([str(n).lstrip("/") for n in raw_names if n])
             if not any(pattern.search(n or "") for n in names if n):
                 return False
         return True
@@ -40,9 +55,13 @@ def _match_filters(container, status: Optional[str], label: Optional[str], name_
 
 @router.get("", response_model=List[ContainerSummary])
 def list_containers(
-    status: Optional[str] = Query(None, description="Filter by status e.g., running, exited"),
+    status: Optional[str] = Query(
+        None, description="Filter by status e.g., running, exited"
+    ),
     label: Optional[str] = Query(None, description="Filter by label or 'key=value'"),
-    name_regex: Optional[str] = Query(None, description="Filter by container name regex"),
+    name_regex: Optional[str] = Query(
+        None, description="Filter by container name regex"
+    ),
 ):
     client = get_client()
     containers = client.containers.list(all=True)
@@ -51,12 +70,31 @@ def list_containers(
         if not _match_filters(c, status, label, name_regex):
             continue
         stats = collect_container_stats_once(c)
-        created = datetime.fromtimestamp(c.attrs.get("Created", 0) if isinstance(c.attrs.get("Created", 0), (int, float)) else 0, tz=timezone.utc) if isinstance(c.attrs.get("Created", 0), (int, float)) else datetime.fromisoformat(c.attrs.get("Created").replace("Z", "+00:00")) if c.attrs.get("Created") else None
+        created = (
+            datetime.fromtimestamp(
+                (
+                    c.attrs.get("Created", 0)
+                    if isinstance(c.attrs.get("Created", 0), (int, float))
+                    else 0
+                ),
+                tz=timezone.utc,
+            )
+            if isinstance(c.attrs.get("Created", 0), (int, float))
+            else (
+                datetime.fromisoformat(c.attrs.get("Created").replace("Z", "+00:00"))
+                if c.attrs.get("Created")
+                else None
+            )
+        )
         results.append(
             ContainerSummary(
                 id=c.id,
                 name=c.name,
-                image=c.image.tags[0] if c.image and c.image.tags else c.attrs.get("Config", {}).get("Image", ""),
+                image=(
+                    c.image.tags[0]
+                    if c.image and c.image.tags
+                    else c.attrs.get("Config", {}).get("Image", "")
+                ),
                 status=c.status,
                 ports=c.attrs.get("NetworkSettings", {}).get("Ports", {}),
                 labels=c.labels or {},
@@ -80,7 +118,11 @@ def get_container(container_id: str):
 
     c.reload()
     stats = collect_container_stats_once(c)
-    logs = c.logs(tail=100, timestamps=True, stdout=True, stderr=True).decode("utf-8", errors="ignore").splitlines()
+    logs = (
+        c.logs(tail=100, timestamps=True, stdout=True, stderr=True)
+        .decode("utf-8", errors="ignore")
+        .splitlines()
+    )
 
     state = c.attrs.get("State", {})
     health = (state.get("Health", {}) or {}).get("Status")
@@ -99,7 +141,11 @@ def get_container(container_id: str):
     return ContainerDetail(
         id=c.id,
         name=c.name,
-        image=c.image.tags[0] if c.image and c.image.tags else c.attrs.get("Config", {}).get("Image", ""),
+        image=(
+            c.image.tags[0]
+            if c.image and c.image.tags
+            else c.attrs.get("Config", {}).get("Image", "")
+        ),
         status=c.status,
         health=health,
         uptime_seconds=uptime_seconds,
@@ -137,6 +183,7 @@ def container_stats(container_id: str):
         "net_rx": stats.net_rx,
         "net_tx": stats.net_tx,
     }
+
 
 @router.post("/{container_id}/start", response_model=ContainerActionResponse)
 def start_container(container_id: str):
